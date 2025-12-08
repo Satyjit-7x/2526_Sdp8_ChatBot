@@ -1,0 +1,41 @@
+//lab 1 
+
+AIM : learn about llm, vector DB, RAG framework and Chatbot using gemini api, find dummy data from kaggle, machine learning nueural network
+
+https://www.cloudflare.com/learning/ai/what-is-large-language-model/
+-> llm - Large Languge Model 
+large because trained on huge sets of data 
+
+https://www.cloudflare.com/learning/bots/what-is-a-chatbot/
+Two types of chat Bot 
+-> rule based      and  -> AI chatbot
+
+RAG = Retrieval-Augmented Generation.
+It’s a technique used to make AI systems (like chatbots) give fact-based, accurate answers by combining:
+Retrieval (find relevant information from a database/documents)
+Generation (use a language model to produce the final answer)
+In simple words:
+The model first searches for the answer, then writes it.
+Without retrieval, the model guesses.
+With RAG, the model uses real data.
+
+RAG = You fetch the correct data → give it to the LLM → LLM writes the answer.
+Think of it like:
+LLM = a student who is very good at writing answers
+Retriever = the bookshelf that gives the correct textbook pages
+RAG = combine both
+Without retrieval:
+LLM guesses
+Sometimes confidently wrong (hallucination)
+With RAG:
+LLM reads your documents first
+Then writes the answer based only on those documents
+So yes:
+RAG = Retrieval (search) + Generation (LLM).
+Search gives real info → LLM rewrites it naturally.
+
+
+vector DB : VectorDB = A database that stores text as vectors (embeddings) and quickly finds the most similar ones based on meaning.
+
+got GEMINI API from : https://aistudio.google.com/u/1/api-keys
+
