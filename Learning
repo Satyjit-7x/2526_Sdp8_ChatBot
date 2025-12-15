@@ -1,4 +1,4 @@
-//lab 1 
+==================================== LAB - 1 ====================================
 
 AIM : learn about llm, vector DB, RAG framework and Chatbot using gemini api, find dummy data from kaggle, machine learning nueural network
 
@@ -39,3 +39,29 @@ vector DB : VectorDB = A database that stores text as vectors (embeddings) and q
 
 got GEMINI API from : https://aistudio.google.com/u/1/api-keys
 
+
+
+==================================== LAB - 2 ====================================
+
+--> prepaer dataset from E-commerce website
+--> learn that how to clean data
+--> learn how text processing is done 
+    -> lowecasing
+    -> remove punctuation
+    -> tokenization
+    -> remove stopwords
+    -> lemmatization
+--> learn how vectorization done(text->numbers)
+--> learn two method of vectorization
+    -> beg of words(BoW) : count how many times each words appears
+    -> TF(how often word appears in sentence) - IDF(how rare word is across all sentences) : 
+       means it give more importance to rare word and less importance to comman words and create its array
+--> creat chatbot dataset 
+--> learn how to train ML model 
+    -> load dataset
+    -> Text processing
+    -> Convert text -> number (TF-IDL)
+    -> Encode intent lables
+    -> Train-Test split
+    -> Train the model
+--> create basic chatbot using this logic
