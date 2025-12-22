@@ -30,7 +30,10 @@ def main():
     print(" ECOMMERCE SUPPORT BOT (Ready to help!)")
     print(" Try asking: 'Where is my order?' or 'I want a refund'")
     print(" Type 'exit' to quit.")
+    print(" Type 'translate to [language]' to translate the last bot response.")
     print("="*50 + "\n")
+
+    last_response = ""
 
     while True:
         try:
@@ -42,9 +45,27 @@ def main():
             
             if not user_input.strip():
                 continue
+
+            # Check for explicit translation command
+            if user_input.lower().startswith("translate to "):
+                if not last_response:
+                    print("Bot: I haven't said anything yet to translate!")
+                    continue
+                
+                target_lang = user_input.lower().replace("translate to ", "").strip()
+                print(f"Bot (translating to {target_lang})...")
+                translated_response = bot.translate_from_english(last_response, target_lang)
+                print(f"Bot: {translated_response}\n")
+                continue
+
+            # 1. Translate User Input to English (if needed) for processing
+            english_input = bot.translate_to_english(user_input)
             
-            response = bot.get_response(user_input) # print response from bot
-            print(f"Bot: {response}\n")
+            # 2. Get Response (English)
+            response_en = bot.get_response(english_input) 
+            last_response = response_en
+
+            print(f"Bot: {response_en}\n")
             
         except KeyboardInterrupt:
             print("\nBot: Goodbye!")

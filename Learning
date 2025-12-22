@@ -65,3 +65,42 @@ got GEMINI API from : https://aistudio.google.com/u/1/api-keys
     -> Train-Test split
     -> Train the model
 --> create basic chatbot using this logic
+
+
+
+==================================== LAB - 3 ====================================
+
+--> Implement Multilingual Support (Language Translation)
+    -> Learned how to use external APIs for translation (Google Translator API via deep-translator)
+    -> "Pivot Language" Strategy:
+        1. Input: Convert User Language -> English (Pivot)
+        2. Process: Chatbot understands/matches intent in English
+        3. Output: Convert English Response -> User Language (if needed/requested)
+    
+--> Learned "Mixin" Pattern in Python
+    -> Created a 'TranslationMixin' class to handle translation logic separate from the main Bot Engine
+    -> Inherited this mixin in the main Chatbot class
+    -> Keeps code clean and organized (Separation of Concerns)
+
+--> Robustness & Error Handling
+    -> What happens if a library is missing? (ModuleNotFoundError)
+    -> Used 'try-except' blocks to handle missing dependencies gracefully
+    -> Check if library exists -> if yes, enable feature; if no, print warning but keep bot running
+    -> Handling API errors (network issues/timeouts) without crashing the bot
+
+--> Explicit vs Implicit Translation
+    -> Auto-detecting input language
+    -> Adding specific commands like "translate to [language]" for user control
+
+--> ChromaDB and Sentence Transformer
+    -> Limitation of TF-IDF/BoW: Only matches exact keywords. Cannot understand "car" ~ "automobile".
+    -> Solution: Vector Embeddings (Sentence Transformers)
+        -> Converts text into list of numbers (vectors) representing *meaning*.
+        -> "King" - "Man" + "Woman" ≈ "Queen"
+    -> ChromaDB (Vector Database)
+        -> Specialized database to store these vectors.
+        -> Allows "Semantic Search": Finding nearest neighbors (most similar meaning) instead of just matching words.
+        -> Fast retrieval for RAG (Retrieval Augmented Generation).
+
+
+==================================== LAB - 4 ====================================

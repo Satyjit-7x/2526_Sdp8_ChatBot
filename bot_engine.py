@@ -4,8 +4,43 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
-class ChatbotEngine:
+try:
+    from deep_translator import GoogleTranslator
+except ImportError:
+    GoogleTranslator = None
+    print("WARNING: 'deep-translator' library not found. Translation features will be disabled.")
+    print("Please install it using: pip install deep-translator")
+
+class TranslationMixin:
+    """Helper class for translation features"""
+    def __init__(self):
+        if GoogleTranslator:
+            self.translator = GoogleTranslator(source='auto', target='en')
+        else:
+            self.translator = None
+    
+    def translate_to_english(self, text):
+        if not self.translator:
+            return text
+        try:
+            # Detect and translate to English
+            return self.translator.translate(text)
+        except Exception as e:
+            print(f"Translation Error: {e}")
+            return text
+
+    def translate_from_english(self, text, target_lang):
+        if not self.translator:
+            return text
+        try:
+            return GoogleTranslator(source='en', target=target_lang).translate(text)
+        except Exception as e:
+            print(f"Translation Error: {e}")
+            return text
+
+class ChatbotEngine(TranslationMixin):
     def __init__(self, data_path, query_col, response_col):
+        TranslationMixin.__init__(self)  # Initialize translator
         self.data_path = data_path
         self.query_col = query_col
         self.response_col = response_col
@@ -49,6 +84,7 @@ class ChatbotEngine:
         # Compare numbers! (Cosine Similarity = Calculate angle between vectors) 1.0 = Exact match, 0.0 = Completely different
         similarities = cosine_similarity(user_tfidf, self.tfidf_matrix).flatten()
         
+    
         # Find the best score
         best_match_index = np.argmax(similarities)
         best_score = similarities[best_match_index]
@@ -58,3 +94,4 @@ class ChatbotEngine:
             return self.df.iloc[best_match_index][self.response_col]
         else:
             return "I'm sorry, I don't understand that request. Could you rephrase?"
+
