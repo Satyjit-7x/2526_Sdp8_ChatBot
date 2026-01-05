@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Data and Database
+data/chroma_db/
+data/vector_store.pkl
+data/*.pkl
+
+# OS
+.DS_Store

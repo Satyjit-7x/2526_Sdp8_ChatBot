@@ -1,0 +1,4 @@
+pandas
+chromadb
+sentence-transformers
+kagglehub

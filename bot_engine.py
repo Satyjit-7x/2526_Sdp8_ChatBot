@@ -1,97 +1,60 @@
 
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
+import chromadb
+from chromadb.utils import embedding_functions
+import os
 
-try:
-    from deep_translator import GoogleTranslator
-except ImportError:
-    GoogleTranslator = None
-    print("WARNING: 'deep-translator' library not found. Translation features will be disabled.")
-    print("Please install it using: pip install deep-translator")
+class ChatbotEngine:
+    def __init__(self, chroma_db_path="data/chroma_db"):
+        self.chroma_db_path = chroma_db_path
+        self.collection = None
+        self.ef = None
 
-class TranslationMixin:
-    """Helper class for translation features"""
-    def __init__(self):
-        if GoogleTranslator:
-            self.translator = GoogleTranslator(source='auto', target='en')
-        else:
-            self.translator = None
-    
-    def translate_to_english(self, text):
-        if not self.translator:
-            return text
-        try:
-            # Detect and translate to English
-            return self.translator.translate(text)
-        except Exception as e:
-            print(f"Translation Error: {e}")
-            return text
-
-    def translate_from_english(self, text, target_lang):
-        if not self.translator:
-            return text
-        try:
-            return GoogleTranslator(source='en', target=target_lang).translate(text)
-        except Exception as e:
-            print(f"Translation Error: {e}")
-            return text
-
-class ChatbotEngine(TranslationMixin):
-    def __init__(self, data_path, query_col, response_col):
-        TranslationMixin.__init__(self)  # Initialize translator
-        self.data_path = data_path
-        self.query_col = query_col
-        self.response_col = response_col
-        
-        # Vectorize data and remove stop words
-        self.vectorizer = TfidfVectorizer(stop_words='english') 
-        
-        self.tfidf_matrix = None
-        self.df = None
+    def load_model(self):
+        print("Loading SentenceTransformer model (all-MiniLM-L6-v2) for ChromaDB...")
+        # initialization for embedding function
+        #Directory Based
+        self.ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     def load_data(self):
-        print(f"Loading data from {self.data_path}...")
-        self.df = pd.read_csv(self.data_path)
+        print(f"Connecting to ChromaDB at {self.chroma_db_path}...")
         
-        # Remove empty rows to avoid errors
-        self.df.dropna(subset=[self.query_col, self.response_col], inplace=True)
-        print(f"Data loaded successfully. {len(self.df)} conversations found.")
-
-    def train(self):
-        """
-        Train the Data (Vectorization)
-        This function converts every question in our CSV into a list of numbers (Vectors).
-        """
-        if self.df is None:
-            raise ValueError("Data not loaded. Call load_data() first.")
+        client = chromadb.PersistentClient(path=self.chroma_db_path)
         
-        print("Training model...")
-        # .fit_transform() does two things:
-        # 1. Learns all the words in the column (Vocabulary)
-        # 2. Converts the sentences into a Matrix of numbers
-        self.tfidf_matrix = self.vectorizer.fit_transform(self.df[self.query_col])
-        print("Training complete. The bot has 'read' the textbook.")
+        # check if collection exists
+        try:
+           self.collection = client.get_collection(name="chatbot_qa", embedding_function=self.ef)
+           print(f"Connected to collection 'chatbot_qa'. contain {self.collection.count()} documents.")
+        except Exception as e:
+           print(f"Error connecting to collection: {e}")
+           raise
 
-    def get_response(self, user_query, threshold=0.3): # threshold 0.3 means 30% match of question we generate answer
-        if self.tfidf_matrix is None:
-            return "Error: Bot is not trained yet."
+    def get_response(self, user_query, threshold=None): # threshold handled by n_results sort of, but Chroma returns distances
+        if self.collection is None:
+            return "Error: Data not loaded."
 
-        # Convert question to numbers using the SAME translator
-        user_tfidf = self.vectorizer.transform([user_query])
-
-        # Compare numbers! (Cosine Similarity = Calculate angle between vectors) 1.0 = Exact match, 0.0 = Completely different
-        similarities = cosine_similarity(user_tfidf, self.tfidf_matrix).flatten()
+        # Query ChromaDB
+        # We ask for n_results=1 to get the best match
+        results = self.collection.query(
+            query_texts=[user_query],
+            n_results=1
+        )
         
-    
-        # Find the best score
-        best_match_index = np.argmax(similarities)
-        best_score = similarities[best_match_index]
-
-        # If best_score good then return answer we compare with threshold
-        if best_score >= threshold:
-            return self.df.iloc[best_match_index][self.response_col]
-        else:
-            return "I'm sorry, I don't understand that request. Could you rephrase?"
+        # Results structure: {'ids': [['id']], 'distances': [[0.5]], 'metadatas': [[{'response': '...'}]]}
+        if not results['metadatas'] or not results['metadatas'][0]:
+             return "I'm sorry, I don't see a clear answer to that."
+        
+        # Check distance if we want strict thresholding. 
+        # Chroma default is L2 distance (lower is better, 0 is exact match).
+        # However, verifying 'threshold' with distances is tricky without normalization.
+        # For now, we trust the best match from Chroma.
+        
+        best_response = results['metadatas'][0][0]['response']
+        dist = results['distances'][0][0]
+        
+        # Optional: heuristic for "too far"
+        # In L2, > 1.0 or 1.5 might be "far" 
+        # "threshold" in previous cosine sim was > 0.4 (higher is better)
+        # Let's return the match
+        
+        return best_response
 
