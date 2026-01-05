@@ -92,6 +92,8 @@ got GEMINI API from : https://aistudio.google.com/u/1/api-keys
     -> Auto-detecting input language
     -> Adding specific commands like "translate to [language]" for user control
 
+==================================== LAB - 4 ====================================
+
 --> ChromaDB and Sentence Transformer
     -> Limitation of TF-IDF/BoW: Only matches exact keywords. Cannot understand "car" ~ "automobile".
     -> Solution: Vector Embeddings (Sentence Transformers)
@@ -102,5 +104,9 @@ got GEMINI API from : https://aistudio.google.com/u/1/api-keys
         -> Allows "Semantic Search": Finding nearest neighbors (most similar meaning) instead of just matching words.
         -> Fast retrieval for RAG (Retrieval Augmented Generation).
 
+--> Created a small dummy frontend and backend application for testing our chatbot.
+    - The frontend allows the user to chat and uses sample order data for one user.
+    - The backend checks simple questions like order list or last purchase date using this dummy data.
+    - For other questions, it will send the request to the bot_engine.py but not implemented yet.
+    - This helps us test the chatbot easily without affecting the main system.
 
-==================================== LAB - 4 ====================================
