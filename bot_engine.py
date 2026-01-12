@@ -41,7 +41,7 @@ class ChatbotEngine:
         
         # Results structure: {'ids': [['id']], 'distances': [[0.5]], 'metadatas': [[{'response': '...'}]]}
         if not results['metadatas'] or not results['metadatas'][0]:
-             return "I'm sorry, I don't see a clear answer to that."
+            return "I'm not sure how to answer that. Can you tell me more?"
         
         # Check distance if we want strict thresholding. 
         # Chroma default is L2 distance (lower is better, 0 is exact match).

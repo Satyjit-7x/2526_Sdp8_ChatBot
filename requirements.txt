@@ -2,3 +2,8 @@ pandas
 chromadb
 sentence-transformers
 kagglehub
+flask
+flask-cors
+nltk
+scikit-learn
+python-dotenv
