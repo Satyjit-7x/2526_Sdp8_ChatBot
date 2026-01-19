@@ -68,6 +68,10 @@ def vectorize_data():
     metadatas = [{'response': r} for r in combined_df['response'].tolist()]
     ids = [str(i) for i in range(unique_count)]
 
+    print("Docs:", len(documents))
+    print("Metas:", len(metadatas))
+    print("IDs:", len(ids))
+
     # Add in batches
     collection.add(
         documents=documents,
