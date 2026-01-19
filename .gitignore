@@ -30,3 +30,5 @@ dist/
 build/
 frontend/dist/
 backend/dist/
+data/english_support_dataset.csv
+data/hindi_support_dataset.csv
