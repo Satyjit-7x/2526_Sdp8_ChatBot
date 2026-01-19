@@ -118,3 +118,7 @@ got GEMINI API from : https://aistudio.google.com/u/1/api-keys
     -> If no matching reply is found, backend passes the message to my trained ML model / retrieval logic.
     -> The model uses vectorized text and my prepared dataset (Kaggle + chatbot data) to find similar past conversations and decide the best reply.
     -> Backend returns this final answer to the frontend, and the frontend displays it to the user in the chat window (end-to-end flow complete).
+
+
+==================================== LAB - 6 ====================================
+
