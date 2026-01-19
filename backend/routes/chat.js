@@ -1,5 +1,5 @@
 const express = require('express');
-const fetch = require('node-fetch');
+const fetch = globalThis.fetch || ((...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args)));
 
 const router = express.Router();
 
@@ -11,16 +11,7 @@ const orders = [
 ];
 
 const AI_URL =
-  process.env.AI_SERVICE_URL || 'http://localhost:8000/ai/chat';
-
-// Simple keyword checks
-function isOrderList(text) {
-  return /order list|my orders|order history/i.test(text);
-}
-
-function isLastOrderDate(text) {
-  return /(last|latest) order.*date/i.test(text);
-}
+  process.env.AI_SERVICE_URL || 'http://localhost:5001/api/chat';
 
 router.post('/', async (req, res) => {
   const message = req.body?.message;
@@ -29,30 +20,15 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Message is required' });
   }
 
-  // Handle basic order queries locally
-  if (isOrderList(message)) {
-    const list = orders
-      .map((o) => `${o.orderId} (${o.product}) on ${o.date}`)
-      .join(', ');
-
-    return res.json({
-      reply: `You have ${orders.length} orders: ${list}`,
-    });
-  }
-
-  if (isLastOrderDate(message)) {
-    const lastOrder = orders[0];
-    return res.json({
-      reply: `Your last order was placed on ${lastOrder.date}.`,
-    });
-  }
-
-  // Forward other questions to AI service
+  // Forward questions to AI service with orders context
   try {
     const aiRes = await fetch(AI_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: message }),
+      body: JSON.stringify({
+        message: message,
+        orders: orders // <--- Pass orders as context
+      }),
     });
 
     if (!aiRes.ok) {

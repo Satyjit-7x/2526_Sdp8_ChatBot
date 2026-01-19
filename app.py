@@ -32,7 +32,8 @@ def chat():
             return jsonify({"reply": "Hello! How can I assist you today?"})
 
         # Use bot_engine for other queries
-        reply = bot.get_response(user_message)
+        context_data = data.get("orders", [])
+        reply = bot.get_response(user_message, context_data=context_data)
         return jsonify({"reply": reply})
     except Exception as e:
         logger.error(f"Chat error: {e}")
@@ -43,5 +44,5 @@ def reset():
     return jsonify({"reply": "Chat session reset."})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=True)

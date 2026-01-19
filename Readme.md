@@ -183,3 +183,31 @@ The responsibilities are clearly separated:
 - **Python side**: ML, embeddings, ChromaDB/RAG, intent understanding, answer generation.
 - **Node.js backend**: Thin controller using dummy order data for simple queries, forwarding all other queries to the AI service.
 - **React frontend**: Simple chat UI and a dummy view of the user’s orders for demo/testing.
+
+
+
+=============================================TO RUN THE PROJECT=============================================
+
+cd 2526_sdp8_chatbot/2526_sdp8_chatbot  ============BOT
+
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python vectorize_data.py
+PORT=5001 python app.py
+
+
+ 
+cd 2526_sdp8_chatbot/2526_sdp8_chatbot/backend           ============BACKEND
+
+npm install
+AI_SERVICE_URL=http://localhost:5001/api/chat npm start
+
+
+
+cd 2526_sdp8_chatbot/2526_sdp8_chatbot/frontend         ============FRONTEND
+
+npm install
+VITE_CHAT_API_URL=http://localhost:3001/api/chat npm run dev
+
+
+
