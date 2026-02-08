@@ -10,6 +10,8 @@
 
 .chat-container {
   width: min(960px, 100%);
+  height: 85vh;
+  /* Fixed height to allow scrolling inside */
   background: #ffffff;
   border-radius: 28px;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.14);
@@ -72,6 +74,8 @@
 
 .messages-area {
   flex: 1;
+  overflow-y: auto;
+  /* Enable scrolling */
   padding: 1.75rem;
   display: flex;
   flex-direction: column;

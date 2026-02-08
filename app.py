@@ -18,11 +18,19 @@ try:
 except Exception as e:
     logger.error(f"Failed to load chatbot engine: {e}")
 
+
+# In-memory session store for pending actions
+# Key: user_id (not really available in simple setup, so we might need a singleton or IP based)
+# For this simple demo, we'll use a global variable. In production, use Redis or session cookies.
+pending_confirmations = {}
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
     try:
         data = request.get_json()
         user_message = data.get("message", "").strip()
+        user_id = request.remote_addr # Simple user identification
+        
         if not user_message:
             return jsonify({"reply": "Please say something."}), 400
 
@@ -31,9 +39,29 @@ def chat():
         if user_message.lower() in greetings:
             return jsonify({"reply": "Hello! How can I assist you today?"})
 
-        # Use bot_engine for other queries
-        context_data = data.get("orders", [])
-        reply = bot.get_response(user_message, context_data=context_data)
+        # Check for pending confirmation
+        pending_action = pending_confirmations.get(user_id)
+        
+        # Use bot_engine
+        # context_data is legacy dummy frontend data, can be ignored now that we have real DB
+        # context_data = data.get("orders", []) 
+        
+        reply = bot.get_response(user_message, pending_action=pending_action)
+        
+        # Check if reply is a JSON string indicating confirmation needed
+        import json
+        try:
+            parsed_reply = json.loads(reply)
+            if isinstance(parsed_reply, dict) and parsed_reply.get("requires_confirmation"):
+                pending_confirmations[user_id] = parsed_reply.get("sql")
+                return jsonify({"reply": parsed_reply.get("message")})
+        except:
+            pass # Not a special JSON response
+            
+        # If we had a pending action and now we got a normal reply (Process complete or Cancelled)
+        if pending_action:
+            pending_confirmations.pop(user_id, None)
+
         return jsonify({"reply": reply})
     except Exception as e:
         logger.error(f"Chat error: {e}")
