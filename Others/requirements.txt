@@ -7,3 +7,4 @@ flask-cors
 nltk
 scikit-learn
 python-dotenv
+google-generativeai

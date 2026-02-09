@@ -41,12 +41,10 @@ def chat():
 
         # Check for pending confirmation
         pending_action = pending_confirmations.get(user_id)
+        pending_items = pending_confirmations.get(f"{user_id}_affected")
         
-        # Use bot_engine
-        # context_data is legacy dummy frontend data, can be ignored now that we have real DB
-        # context_data = data.get("orders", []) 
-        
-        reply = bot.get_response(user_message, pending_action=pending_action)
+        # Use bot_engine with session_id and pending_items
+        reply = bot.get_response(user_message, pending_action=pending_action, pending_items=pending_items, session_id=user_id)
         
         # Check if reply is a JSON string indicating confirmation needed
         import json
@@ -54,6 +52,9 @@ def chat():
             parsed_reply = json.loads(reply)
             if isinstance(parsed_reply, dict) and parsed_reply.get("requires_confirmation"):
                 pending_confirmations[user_id] = parsed_reply.get("sql")
+                # Cache affected items for use after confirmation
+                if parsed_reply.get("affected_items"):
+                    pending_confirmations[f"{user_id}_affected"] = parsed_reply.get("affected_items")
                 return jsonify({"reply": parsed_reply.get("message")})
         except:
             pass # Not a special JSON response
@@ -61,11 +62,37 @@ def chat():
         # If we had a pending action and now we got a normal reply (Process complete or Cancelled)
         if pending_action:
             pending_confirmations.pop(user_id, None)
+            pending_confirmations.pop(f"{user_id}_affected", None)  # Clean up cache
 
         return jsonify({"reply": reply})
     except Exception as e:
         logger.error(f"Chat error: {e}")
         return jsonify({"reply": "I'm having trouble understanding. Try again later."}), 500
+
+@app.route("/api/orders", methods=["GET"])
+def get_orders():
+    """Get all orders from database for frontend display"""
+    try:
+        import sqlite3
+        conn = sqlite3.connect('orders.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT order_id, product, date, status FROM orders ORDER BY date DESC")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        orders = []
+        for row in rows:
+            orders.append({
+                "orderId": row[0],
+                "product": row[1],
+                "date": row[2],
+                "status": row[3]
+            })
+        
+        return jsonify({"orders": orders})
+    except Exception as e:
+        print(f"Error fetching orders: {e}")
+        return jsonify({"orders": [], "error": str(e)}), 500
 
 @app.route("/api/reset", methods=["POST"])
 def reset():

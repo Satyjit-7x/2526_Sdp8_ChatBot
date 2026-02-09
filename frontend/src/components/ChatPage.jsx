@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import '../App.css';
 
-const dummyOrders = [
-  { orderId: 'ORD001', product: 'Mobile', date: '2023-10-03', status: 'Delivered' },
-  { orderId: 'ORD002', product: 'Headphones', date: '2023-09-15', status: 'Shipped' },
-  { orderId: 'ORD003', product: 'Wireless Charger', date: '2023-08-21', status: 'Returned' },
-  { orderId: 'ORD004', product: 'Smartwatch', date: '2023-07-02', status: 'Delivered' },
-];
-
 const apiUrl =
   import.meta.env.VITE_CHAT_API_URL || 'http://localhost:3001/api/chat';
+const ordersApiUrl = 'http://localhost:5001/api/orders';
 
 const ChatPage = () => {
   const [messages, setMessages] = useState([
@@ -17,16 +11,42 @@ const ChatPage = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
 
-  // SAME logic: only formatting data
+  // Fetch orders from database
+  const fetchOrders = async () => {
+    try {
+      const response = await fetch(ordersApiUrl);
+      const data = await response.json();
+      if (data.orders) {
+        setOrders(data.orders);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setOrders([]);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  // Fetch orders on mount
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  // Dynamic order summary
   const orderSummary = useMemo(() => {
-    return dummyOrders
+    if (orders.length === 0) {
+      return 'No orders found';
+    }
+    return orders
       .map(
         (order) =>
           `${order.orderId} • ${order.product} (${order.date}, ${order.status})`
       )
       .join(' | ');
-  }, []);
+  }, [orders]);
 
   // useEffect kept but does NOT change behavior
   useEffect(() => {
@@ -50,7 +70,9 @@ const ChatPage = () => {
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.text }),
+        body: JSON.stringify({
+          message: inputValue.trim(),
+        }),
       });
 
       if (!response.ok) {
@@ -67,13 +89,17 @@ const ChatPage = () => {
           text: payload.reply || 'I am still thinking...',
         },
       ]);
+
+      // Refresh orders list after bot response (shows deleted/added/updated orders)
+      fetchOrders();
+
     } catch (error) {
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
           sender: 'bot',
-          text: 'Unable to reach the chat service. Please try again later.',
+          text: 'Oops! Bad network or server issue.',
         },
       ]);
     } finally {
