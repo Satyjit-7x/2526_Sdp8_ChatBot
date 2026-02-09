@@ -122,13 +122,17 @@ class ChatbotEngine:
         return formatted
 
     def generate_sql(self, user_query):
-        """Generate SQL from user query using pattern matching (no API needed)"""
-        query_lower = user_query.lower()
+        """Generate SQL from natural language - Enhanced pattern matching"""
+        query_lower = user_query.lower().strip()
         
+        # Pattern 0: Bare order ID (e.g., "ORD999", "ord123")
+        order_match = re.search(r'^ord\d+$', query_lower.strip())
+        if order_match:
+            order_id = order_match.group(0).upper()
+            return f"SELECT * FROM orders WHERE order_id = '{order_id}'"
         
         # Pattern 1: DELETE operations - Enhanced with qualifiers
         if any(word in query_lower for word in ['delete', 'remove', 'cancel order']):
-            import re
             import sqlite3
             
             # Check if user specified order ID directly
@@ -256,7 +260,6 @@ class ChatbotEngine:
         # Pattern 2: CREATE/INSERT operations
         elif any(word in query_lower for word in ['create', 'add', 'insert', 'new order']):
             # Extract product name
-            import re
             from datetime import date
             
             # Try to find product after keywords
@@ -279,7 +282,6 @@ class ChatbotEngine:
         # Pattern 3: UPDATE operations
         elif any(word in query_lower for word in ['update', 'change', 'modify', 'set']):
             # Extract order ID and new status
-            import re
             order_match = re.search(r'ord\d+', query_lower)
             if order_match:
                 order_id = order_match.group(0).upper()
@@ -296,7 +298,6 @@ class ChatbotEngine:
         # Pattern 4: SELECT/READ operations - Enhanced for natural language
         elif any(word in query_lower for word in ['show', 'list', 'get', 'my orders', 'all orders', 'view', 'which', 'what', 'any', 'how many', 'display']):
             # Check if asking for specific order
-            import re
             order_match = re.search(r'ord\d+', query_lower)
             if order_match:
                 order_id = order_match.group(0).upper()
@@ -428,7 +429,6 @@ class ChatbotEngine:
             if last_op_type == "CLARIFY_REQUEST":
                 # User is responding to clarification - check if it's a simple product/order reference
                 query_lower = user_query.lower().strip()
-                import re
                 order_match = re.search(r'ord\d+', query_lower)
                 # If it's an order ID or a short product name (1-3 words), treat as delete
                 if order_match or len(query_lower.split()) <= 3:
@@ -449,7 +449,10 @@ class ChatbotEngine:
             # Product/order references
             "products", "orders", "order", "product", "items"
         ]
-        is_potential_sql = any(k in user_query.lower() for k in sql_keywords)
+        # Also check if query contains an order ID pattern
+        has_order_id = bool(re.search(r'ord\d+', user_query.lower()))
+        
+        is_potential_sql = any(k in user_query.lower() for k in sql_keywords) or has_order_id
         
         if is_potential_sql:
             generated_sql = self.generate_sql(user_query)
@@ -518,7 +521,6 @@ class ChatbotEngine:
                     
                     if "DELETE" in generated_sql.upper():
                         # Extract what will be deleted
-                        import re
                         conn = sqlite3.connect(self.db_path)
                         cursor = conn.cursor()
                         

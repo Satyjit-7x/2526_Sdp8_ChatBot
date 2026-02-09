@@ -3,6 +3,7 @@ from flask_cors import CORS
 import os
 import logging
 from bot_engine import ChatbotEngine
+from smart_formatter import SmartFormatter
 
 app = Flask(__name__)
 CORS(app)
@@ -17,6 +18,13 @@ try:
     logger.info("Chatbot engine loaded successfully.")
 except Exception as e:
     logger.error(f"Failed to load chatbot engine: {e}")
+
+# Initialize response formatter
+formatter = SmartFormatter()
+if formatter.is_available():
+    logger.info("Smart formatter (Gemini) loaded successfully.")
+else:
+    logger.warning("Smart formatter not available - will use raw responses.")
 
 
 # In-memory session store for pending actions
@@ -64,7 +72,10 @@ def chat():
             pending_confirmations.pop(user_id, None)
             pending_confirmations.pop(f"{user_id}_affected", None)  # Clean up cache
 
-        return jsonify({"reply": reply})
+        # Format the response using Gemini for better user experience
+        formatted_reply = formatter.format_response(user_message, reply)
+        
+        return jsonify({"reply": formatted_reply})
     except Exception as e:
         logger.error(f"Chat error: {e}")
         return jsonify({"reply": "I'm having trouble understanding. Try again later."}), 500
