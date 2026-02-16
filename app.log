@@ -1,0 +1,19 @@
+/Users/ravirajsinhpadhiyar/Documents/GitHub/2526_sdp8_chatbot/2526_sdp8_chatbot/bot_engine.py:6: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+INFO:sentence_transformers.SentenceTransformer:Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+INFO:chromadb.telemetry.product.posthog:Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+INFO:__main__:Chatbot engine loaded successfully.
+Loading SentenceTransformer model (all-MiniLM-L6-v2) for ChromaDB...
+Connecting to ChromaDB at data/chroma_db...
+Connected to collection 'chatbot_qa'. contain 731 documents.
+ * Serving Flask app 'app'
+ * Debug mode: on
+Address already in use
+Port 5001 is in use by another program. Either identify and stop that program, or start the server with a different port.
