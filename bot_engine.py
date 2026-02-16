@@ -184,7 +184,7 @@ class ChatbotEngine:
                     status_query = 'Returned'
                 
                 if status_query:
-                    cursor.execute("SELECT order_id, product_name, order_date, status FROM orders WHERE status = ?", (status_query,))
+                    cursor.execute("SELECT order_id, product, date, status FROM orders WHERE status = ?", (status_query,))
                     matches = cursor.fetchall()
                     conn.close()
                     
@@ -208,7 +208,7 @@ class ChatbotEngine:
             cursor = conn.cursor()
             
             # Find all matches for this product
-            cursor.execute("SELECT order_id, product_name, order_date, status FROM orders WHERE LOWER(product_name) LIKE ?", 
+            cursor.execute("SELECT order_id, product, date, status FROM orders WHERE LOWER(product) LIKE ?", 
                           (f'%{product.lower()}%',))
             matches = cursor.fetchall()
             conn.close()
@@ -255,7 +255,6 @@ class ChatbotEngine:
         
         # Pattern 2: CREATE/INSERT operations
         elif any(word in query_lower for word in ['create', 'add', 'insert', 'new order']):
-            print(f"[DEBUG] CREATE pattern matched for: {user_query}")
             # Extract product name
             import re
             from datetime import date
@@ -268,18 +267,13 @@ class ChatbotEngine:
                         product = parts[-1].strip().split(',')[0].strip()
                         # Remove common words
                         product = product.replace('a ', '').replace('an ', '').replace('order', '').strip()
-                        print(f"[DEBUG] Extracted product: '{product}'")
                         if product and len(product) > 2:
                             # Generate random order ID
                             import random
                             order_id = f"ORD{random.randint(100, 999):03d}"
                             today = date.today().strftime('%Y-%m-%d')
                             product_cap = product.title()
-                            # Use correct column names: product_name, order_date (matching DB schema)
-                            sql = f"INSERT INTO orders (order_id, product_name, price, order_date, status) VALUES ('{order_id}', '{product_cap}', 0, '{today}', 'Pending')"
-                            print(f"[DEBUG] Generated SQL: {sql}")
-                            return sql
-            print(f"[DEBUG] Failed to extract product from query")
+                            return f"INSERT INTO orders (order_id, product, date, status) VALUES ('{order_id}', '{product_cap}', '{today}', 'Pending')"
             return None
         
         # Pattern 3: UPDATE operations
@@ -345,76 +339,6 @@ class ChatbotEngine:
                 return {"type": "ACTION", "status": "success"}
         except Exception as e:
             return {"type": "ERROR", "message": str(e)}
-    
-    def format_action_response_with_gemini(self, user_query, sql_query, sql_result):
-        """Format SQL action results with Gemini for user-friendly responses"""
-        try:
-            # Get context from ChromaDB for relevance
-            rag_context = ""
-            try:
-                results = self.collection.query(query_texts=[user_query], n_results=2)
-                if results and results.get('documents') and len(results['documents']) > 0:
-                    rag_context = " ".join(results['documents'][0][:2])  # Top 2 results
-            except:
-                pass
-            
-            # Determine action type
-            sql_upper = sql_query.upper()
-            if 'INSERT' in sql_upper:
-                action_type = "created"
-                # Extract details from SQL
-                import re
-                order_match = re.search(r"'(ORD\d+)'", sql_query)
-                product_match = re.search(r"product.*?'([^']+)'", sql_query, re.IGNORECASE)
-                
-                order_id = order_match.group(1) if order_match else "your order"
-                product = product_match.group(1) if product_match else "the product"
-                
-                prompt = (
-                    f'User said: "{user_query}"\n\n'
-                    f'Action: Order {order_id} for {product} was created successfully.\n\n'
-                    f'Relevant context: {rag_context}\n\n'
-                    'Create a brief (2-3 sentences), friendly confirmation that:\n'
-                    '1. Confirms the order was created\n'
-                    '2. Mentions the order ID and product name\n'
-                    '3. Includes helpful next steps from context if relevant\n'
-                    'Be conversational and concise!'
-                )
-                
-            elif 'UPDATE' in sql_upper:
-                action_type = "updated"
-                prompt = (
-                    f'User said: "{user_query}"\n\n'
-                    f'Action: Order status was updated successfully.\n\n'
-                    f'Context: {rag_context}\n\n'
-                    'Create a brief (1-2 sentences) friendly confirmation of the update.'
-                )
-                
-            elif 'DELETE' in sql_upper:
-                action_type = "deleted"
-                prompt = (
-                    f'User said: "{user_query}"\n\n'
-                    f'Action: Order was removed successfully.\n\n'
-                    f'Context: {rag_context}\n\n'
-                    'Create a brief (1-2 sentences) empathetic confirmation of the deletion.'
-                )
-            else:
-                return "Done! Let me know if you need anything else."
-            
-            # Get Gemini response
-            response = self.model.generate_content(prompt)
-            return response.text.strip()
-            
-        except Exception as e:
-            print(f"Gemini formatting error: {e}")
-            # Fallback
-            if 'INSERT' in sql_query.upper():
-                return "✅ Order created successfully!"
-            elif 'UPDATE' in sql_query.upper():
-                return "✅ Order updated successfully!"
-            elif 'DELETE' in sql_query.upper():
-                return "✅ Order deleted successfully!"
-            return "Done!"
 
     def get_response(self, user_query, threshold=None, context_data=None, pending_action=None, pending_items=None, session_id="default"):
         # 0. Get conversation context
@@ -479,8 +403,7 @@ class ChatbotEngine:
             if user_query.lower() in ['yes', 'confirm', 'sure', 'ok']:
                 result = self.execute_sql(pending_action)
                 if result['type'] == 'ACTION':
-                    # Use Gemini to format friendly response
-                    response = self.format_action_response_with_gemini(user_query, pending_action, result)
+                    response = "Operation completed successfully."
                     # Extract operation details for memory
                     op_type = "DELETE" if "DELETE" in pending_action.upper() else "UPDATE" if "UPDATE" in pending_action.upper() else "CREATE" if "INSERT" in pending_action.upper() else "ACTION"
                     # Save with affected items from pending_items
@@ -603,7 +526,7 @@ class ChatbotEngine:
                         where_match = re.search(r'WHERE\s+(.+)', generated_sql, re.IGNORECASE)
                         if where_match:
                             where_clause = where_match.group(1)
-                            check_sql = f"SELECT product_name, order_id FROM orders WHERE {where_clause}"
+                            check_sql = f"SELECT product, order_id FROM orders WHERE {where_clause}"
                             try:
                                 cursor.execute(check_sql)
                                 items = cursor.fetchall()
@@ -613,19 +536,7 @@ class ChatbotEngine:
                                 print(f"Error fetching items to delete: {e}")
                         conn.close()
                     
-                    # For CREATE operations, execute immediately with Gemini formatting
-                    if op_type == "CREATE":
-                        result = self.execute_sql(generated_sql)
-                        if result['type'] == 'ACTION':
-                            response = self.format_action_response_with_gemini(user_query, generated_sql, result)
-                            self.save_conversation(session_id, user_query, response, sql=generated_sql, op_type=op_type, affected_items=json.dumps(affected_items))
-                            return response
-                        else:
-                            response = f"Error: {result.get('message', 'Unknown error')}"
-                            self.save_conversation(session_id, user_query, response)
-                            return response
-                    
-                    # For UPDATE/DELETE, ask for confirmation
+                    # Build confirmation message with details
                     import json
                     confirmation_msg = f"I am about to execute: `{generated_sql}`. "
                     if affected_items:

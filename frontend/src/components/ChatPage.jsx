@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import ProductList from './ProductList';
+import { useEffect, useMemo, useState } from 'react';
 import '../App.css';
 
 const apiUrl =
@@ -14,16 +13,6 @@ const ChatPage = () => {
   const [isSending, setIsSending] = useState(false);
   const [orders, setOrders] = useState([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
-  const messagesEndRef = useRef(null);
-
-  // Auto-scroll to bottom when messages change
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   // Fetch orders from database
   const fetchOrders = async () => {
@@ -58,6 +47,11 @@ const ChatPage = () => {
       )
       .join(' | ');
   }, [orders]);
+
+  // useEffect kept but does NOT change behavior
+  useEffect(() => {
+    // reserved for future side-effects (analytics, logging, etc.)
+  }, [messages]);
 
   const sendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -119,45 +113,49 @@ const ChatPage = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <ProductList />
-      <div className="chat-container" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <header className="chat-header">
-          <h1>Customer Support Chatbot</h1>
-          <p className="order-summary">{orderSummary}</p>
-        </header>
+    <div className="chat-container">
+      <header className="chat-header">
+        <div>
+          <h1>Customer Support</h1>
+          <p>Only one test user; backend maintains the same order list.</p>
+        </div>
 
-        <section className="messages-area">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`message ${msg.sender}`}>
-              <span className="sender">
-                {msg.sender === 'user' ? 'You' : 'Bot'}
-              </span>
-              <p>{msg.text}</p>
-            </div>
-          ))}
-          {isSending && (
-            <div className="message bot">
-              <span className="sender">Bot</span>
-              <p>Typing...</p>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </section>
+        <div className="order-summary">
+          <p className="summary-label">Current Orders</p>
+          <p>{orderSummary}</p>
+        </div>
+      </header>
 
-        <form className="chat-input" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Ask about your orders..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            disabled={isSending}
-          />
-          <button type="submit" disabled={isSending || !inputValue.trim()}>
-            Send
-          </button>
-        </form>
-      </div>
+      <section className="messages-area">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`message ${msg.sender}`}>
+            <span className="sender">
+              {msg.sender === 'user' ? 'You' : 'Bot'}
+            </span>
+            <p>{msg.text}</p>
+          </div>
+        ))}
+
+        {isSending && (
+          <div className="message bot">
+            <span className="sender">Bot</span>
+            <p>Typing...</p>
+          </div>
+        )}
+      </section>
+
+      <form className="chat-input" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Ask about your orders, refunds, shipping..."
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          disabled={isSending}
+        />
+        <button type="submit" disabled={isSending}>
+          Send
+        </button>
+      </form>
     </div>
   );
 };
