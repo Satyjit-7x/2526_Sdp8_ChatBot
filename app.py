@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import logging
+import re
+import random
 from bot_engine import ChatbotEngine
 from smart_formatter import SmartFormatter
 
@@ -42,10 +44,39 @@ def chat():
         if not user_message:
             return jsonify({"reply": "Please say something."}), 400
 
-        # Simple rule-based greetings
-        greetings = ["hi", "hello", "hey", "good morning", "good evening"]
-        if user_message.lower() in greetings:
-            return jsonify({"reply": "Hello! How can I assist you today?"})
+
+        # Enhanced greeting detection with more patterns
+        greeting_patterns = [
+            r'\b(hi|hello|hey)\b',
+            r'\b(hi there|hey there|hello there)\b',
+            r'\b(good morning|good afternoon|good evening|good night)\b',
+            r'\b(sup|whats up|what\'s up|howdy)\b',
+        ]
+        
+        # Normalize: remove punctuation and extra spaces
+        normalized_msg = re.sub(r'[!?.]+', '', user_message.lower()).strip()
+        
+        is_greeting = any(re.search(pattern, normalized_msg) for pattern in greeting_patterns)
+        
+        if is_greeting:
+            # Vary responses based on greeting type
+            if any(word in normalized_msg for word in ['morning']):
+                return jsonify({"reply": "Good morning! ☀️ How can I help you with your orders today?"})
+            elif any(word in normalized_msg for word in ['afternoon']):
+                return jsonify({"reply": "Good afternoon! How can I assist you?"})
+            elif any(word in normalized_msg for word in ['evening', 'night']):
+                return jsonify({"reply": "Good evening! What can I do for you?"})
+            elif any(word in normalized_msg for word in ['sup', 'whats up', "what's up"]):
+                return jsonify({"reply": "Hey! What can I help you with?"})
+            else:
+                # Default friendly greeting
+                greetings = [
+                    "Hi there! 👋 How can I help you today?",
+                    "Hello! I'm here to assist with your orders.",
+                    "Hey! What can I do for you?",
+                ]
+                return jsonify({"reply": random.choice(greetings)})
+
 
         # Check for pending confirmation
         pending_action = pending_confirmations.get(user_id)
@@ -87,7 +118,11 @@ def get_orders():
         import sqlite3
         conn = sqlite3.connect('orders.db')
         cursor = conn.cursor()
-        cursor.execute("SELECT order_id, product, date, status FROM orders ORDER BY date DESC")
+        cursor.execute("""
+            SELECT order_id, product_name, price, order_date, status 
+            FROM orders 
+            ORDER BY order_date DESC
+        """)
         rows = cursor.fetchall()
         conn.close()
         
@@ -95,15 +130,48 @@ def get_orders():
         for row in rows:
             orders.append({
                 "orderId": row[0],
-                "product": row[1],
-                "date": row[2],
-                "status": row[3]
+                "productName": row[1],
+                "price": row[2],
+                "orderDate": row[3],
+                "status": row[4]
             })
         
         return jsonify({"orders": orders})
     except Exception as e:
         print(f"Error fetching orders: {e}")
         return jsonify({"orders": [], "error": str(e)}), 500
+
+@app.route("/api/products", methods=["GET"])
+def get_products():
+    """Get all available products from database"""
+    try:
+        import sqlite3
+        conn = sqlite3.connect('orders.db')
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT product_id, name, description, price, category, in_stock 
+            FROM products 
+            WHERE in_stock = 1
+            ORDER BY category, name
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        products = []
+        for row in rows:
+            products.append({
+                "productId": row[0],
+                "name": row[1],
+                "description": row[2],
+                "price": row[3],
+                "category": row[4],
+                "inStock": bool(row[5])
+            })
+        
+        return jsonify({"products": products})
+    except Exception as e:
+        print(f"Error fetching products: {e}")
+        return jsonify({"products": [], "error": str(e)}), 500
 
 @app.route("/api/reset", methods=["POST"])
 def reset():
