@@ -15,9 +15,13 @@ ENV/
 data/chroma_db/
 data/vector_store.pkl
 data/*.pkl
+orders.db
+backend/orders.db
+data/orders.db
 
 # OS
 .DS_Store
+*.swp
 
 # Node / JavaScript
 node_modules/

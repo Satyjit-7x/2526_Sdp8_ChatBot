@@ -1,33 +1,41 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const fetch = globalThis.fetch || ((...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args)));
 
 const router = express.Router();
-
-const orders = [
-  { orderId: 'ORD001', product: 'Mobile', date: '2023-10-03', status: 'Delivered' },
-  { orderId: 'ORD002', product: 'Headphones', date: '2023-09-15', status: 'Shipped' },
-  { orderId: 'ORD003', product: 'Wireless Charger', date: '2023-08-21', status: 'Returned' },
-  { orderId: 'ORD004', product: 'Smartwatch', date: '2023-07-02', status: 'Delivered' },
-];
+const SECRET_KEY = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 const AI_URL =
   process.env.AI_SERVICE_URL || 'http://localhost:5001/api/chat';
 
 router.post('/', async (req, res) => {
   const message = req.body?.message;
+  const user_id = req.body?.user_id;
 
   if (!message || typeof message !== 'string') {
     return res.status(400).json({ error: 'Message is required' });
   }
 
-  // Forward questions to AI service with orders context
+  // Extract user_id from JWT token if not provided in body
+  let sessionUserId = user_id || 'default';
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) {
+      const decoded = jwt.verify(token, SECRET_KEY);
+      sessionUserId = decoded.user_id || sessionUserId;
+    }
+  } catch (e) {
+    // Token verification failed, use default or provided user_id
+  }
+
+  // Forward to Flask AI service with user_id for session tracking
   try {
     const aiRes = await fetch(AI_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: message,
-        orders: orders // <--- Pass orders as context
+        user_id: sessionUserId
       }),
     });
 

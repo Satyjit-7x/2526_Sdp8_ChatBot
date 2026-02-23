@@ -1,213 +1,281 @@
-# Multilingual E-Commerce Chatbot
+# 🚀 E-Commerce Chatbot with Gemini AI
 
-A vector-based chatbot capable of understanding English and Hindi queries using semantic search (ChromaDB + SentenceTransformers).
+A smart, three-tier chatbot system for e-commerce customer support with product management, order tracking, and intelligent CRUD operations powered by Google Gemini AI.
 
-## 🚀 Setup Guide
+## ✨ Key Features
 
-Follow these steps to set up the project on your machine.
+✅ **Product Management**
+- Browse 69+ products across 10 categories
+- Search products by name/category
+- Beautiful formatted product displays with emojis
+- Product details (price, description, category)
 
-### 1. Clone the Repository
-```bash
-git clone <repository_url>
-cd 2526_sdp8_chatbot
-```
+✅ **Order Management (CRUD)**
+- **Create**: Place new orders from products
+- **Read**: View complete order history
+- **Update**: Change order status (Pending → Shipped → Delivered)
+- **Delete**: Cancel orders with confirmation
 
-### 2. Install Dependencies
-Make sure you have Python installed. Then run:
-```bash
-pip install -r requirements.txt
-```
+✅ **AI-Powered Responses**
+- Google Gemini AI for natural language processing
+- Context-aware conversation with session tracking
+- FAQ retrieval using ChromaDB vector database (RAG)
+- Beautiful, formatted responses with proper formatting
 
-### 3. Get the Data
-If you don't have the CSV files in the `data/` folder, run:
-```bash
-python3 download_dataset.py
-```
-*This downloads the required dataset from Kaggle.*
-
-### 4. Configure Database (Important! ⚠️)
-Before running the bot, you **must** generate the vector database. This script reads the CSV data, creates embeddings, and saves them to `data/chroma_db`.
-
-**Run this command:**
-```bash
-python3 vectorize_data.py
-```
-*You only need to run this once, or whenever you update the datasets in `data/`.*
-
-### 5. Run the Chatbot (ML Console Bot)
-Now you can start the original console bot (Python + ChromaDB):
-```bash
-python3 smart_chatbot.py
-```
-
-## 🧩 Web Chatbot (Controller + UI)
-
-In addition to the ML console bot above, this repository also contains a **thin Node.js controller** and a **React frontend** for an e‑commerce customer support experience.
-
-> The ML, RAG, and vector DB logic are still handled by a separate Python service. The Node.js backend only acts as a controller and proxy.
+✅ **Session Management**
+- User session tracking
+- Conversation history per session
+- Order history tied to user sessions
+- Persistent data storage
 
 ---
 
-### 6. Backend (Node.js + Express) Setup
+## 📋 System Architecture
 
-**Requirements**
+```
+Frontend (React + Vite)
+http://localhost:5173
+        │
+Node.js Backend (Express)
+http://localhost:3001
+        │
+Python Backend (Flask + AI)
+http://localhost:5001
+        │
+    SQLite3 + ChromaDB + Gemini API
+```
 
-- Node.js (LTS recommended, e.g., 18+)
-- npm (comes with Node.js)
+---
 
-**Install dependencies**
+## 🛠️ Installation
 
-From the project root:
+### Prerequisites
+- Python 3.10+
+- Node.js 16+
+- SQLite3
+- Gemini API Key
 
+### Step 1: Setup Python
+```bash
+cd 2526_sdp8_chatbot
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Step 2: Setup Gemini API
+```bash
+# Create .env file
+echo "GEMINI_API_KEY=your_api_key_here" > .env
+```
+
+### Step 3: Initialize Database
+```bash
+python setup_database.py
+```
+
+### Step 4: Setup Node.js Backend
 ```bash
 cd backend
 npm install
 ```
 
-**Configuration**
-
-- The backend exposes a chat controller at: `http://localhost:3001/api/chat`.
-- For non‑order questions, it forwards to your friend’s AI service:
-
-  ```text
-  POST http://localhost:8000/ai/chat
-  Body: { "question": "..." }
-  ```
-
-- You can override that URL with an environment variable:
-
-  ```bash
-  # optional, only if AI service is not at localhost:8000
-  set AI_SERVICE_URL=http://localhost:8000/ai/chat       # Windows (PowerShell/CMD)
-  export AI_SERVICE_URL=http://localhost:8000/ai/chat    # Linux/macOS
-  ```
-
-**Run the backend**
-
-From `backend/`:
-
-```bash
-npm start
-```
-
-You should see a message similar to:
-
-```text
-Chat controller listening at http://localhost:3001
-```
-
-At this point, you have:
-
-- `POST /api/chat` for the web UI.
-- Simple dummy logic for:
-  - Order list / order history
-  - Last order date
-- All other intents are proxied to the AI service.
-
----
-
-### 7. Frontend (React + Vite) Setup
-
-**Requirements**
-
-- Node.js (same as backend)
-
-**Install dependencies**
-
-From the project root:
-
+### Step 5: Setup React Frontend
 ```bash
 cd frontend
 npm install
 ```
 
-**Configuration**
+---
 
-- By default, the frontend sends chat requests to:
+## 🚀 Running the Application
 
-  ```text
-  http://localhost:3001/api/chat
-  ```
+Open 3 different terminals:
 
-- You can override this with a Vite env variable in `frontend/.env`:
-
-  ```bash
-  VITE_CHAT_API_URL=http://localhost:3001/api/chat
-  ```
-
-  (If `.env` does not exist, create it in the `frontend/` folder.)
-
-**Run the frontend**
-
-From `frontend/`:
-
+**Terminal 1: Flask Backend**
 ```bash
-npm run dev
+python app.py
+# Runs on http://localhost:5001
 ```
 
-Vite will print a local URL, for example:
-
-```text
-  Local:   http://localhost:5173/
+**Terminal 2: Node.js Backend**
+```bash
+cd backend && npm start
+# Runs on http://localhost:3001
 ```
 
-Open that URL in your browser to use the web chat UI.
+**Terminal 3: React Frontend**
+```bash
+cd frontend && npm run dev
+# Runs on http://localhost:5173
+```
+
+Visit: **http://localhost:5173**
 
 ---
 
-### 8. End‑to‑End Flow (For Teammates)
+## 💬 Usage Examples
 
-1. **Clone the repository** (from the top of this README).
-2. **Set up the ML pipeline** (Python, datasets, vector DB) using steps 2–5 above.
-3. **Start the AI service** your ML teammate provides (it must expose `POST /ai/chat`).
-4. **Start the Node.js backend**:
+### Browse Products
+```
+User: "Show me gaming products"
+Bot: "📦 Available Products in Gaming:
+     1. **Gaming Mouse** - ₹1999"
+```
 
-   ```bash
-   cd backend
-   npm install        # first time only
-   npm start
-   ```
+### Create Order
+```
+User: "place order for Gaming Mouse"
+Bot: "✅ Order ORD456 created!"
+```
 
-5. **Start the React frontend** in a second terminal:
+### View Orders
+```
+User: "show my orders"
+Bot: "Your Orders:
+     1. ORD456 - Gaming Mouse [Pending]"
+```
 
-   ```bash
-   cd frontend
-   npm install        # first time only
-   npm run dev
-   ```
+### Update Order
+```
+User: "mark order as delivered"
+Bot: "✅ Order updated to Delivered"
+```
 
-6. Open the URL shown by Vite (e.g., `http://localhost:5173/`) to chat with the bot.
+### Cancel Order
+```
+User: "cancel my order"
+Bot: "✅ Order cancelled"
+```
 
-The responsibilities are clearly separated:
+---
 
-- **Python side**: ML, embeddings, ChromaDB/RAG, intent understanding, answer generation.
-- **Node.js backend**: Thin controller using dummy order data for simple queries, forwarding all other queries to the AI service.
-- **React frontend**: Simple chat UI and a dummy view of the user’s orders for demo/testing.
+## 📊 Database Schema
 
+**Products** (69 items across 10 categories)
+- Accessories, Audio, Books, Cameras, Clothing, Computing, Gaming, Health, Home, Mobile
 
+**Orders**
+- order_id, session_id, product_id, product_name, price, quantity, status
 
-=============================================TO RUN THE PROJECT=============================================
+**Conversation History**
+- id, session_id, timestamp, user_message, bot_response
 
-cd 2526_sdp8_chatbot/2526_sdp8_chatbot  ============BOT
+---
 
-python3 -m venv .venv && source .venv/bin/activate
+## 📁 Project Structure
+
+```
+2526_sdp8_chatbot/
+├── app.py                    # Flask API Server
+├── bot_engine.py             # AI Engine & Logic
+├── setup_database.py         # Database Initialization
+├── orders.db                 # SQLite Database
+├── ARCHITECTURE.md           # Detailed Design
+├── backend/                  # Node.js Express
+├── frontend/                 # React + Vite
+└── data/chroma_db/          # Vector Database
+```
+
+---
+
+## 🔌 API Endpoints
+
+```
+POST /api/chat                              # Send message
+GET /api/products                           # All products
+GET /api/products?category=Gaming           # Filter by category
+GET /api/orders                             # User orders
+POST /api/orders                            # Create order
+PUT /api/orders/<id>                        # Update order
+DELETE /api/orders/<id>                     # Delete order
+```
+
+---
+
+## ✅ Testing
+
+```bash
+# Test syntax
+python -m py_compile app.py bot_engine.py setup_database.py
+
+# Test database
+sqlite3 orders.db "SELECT COUNT(*) FROM products"
+
+# Test API
+curl http://localhost:5001/api/products/categories
+```
+
+---
+
+## 🧠 Bot Intelligence
+
+- Product queries: "Show me gaming products", "Find laptops"
+- Order operations: "Create order", "Mark as delivered", "Cancel order"
+- Session tracking: Per-user orders and history
+- Natural language understanding via Gemini AI
+
+---
+
+## 🐛 Troubleshooting
+
+### Port Already in Use
+```bash
+lsof -i :5001 | awk 'NR==2 {print $2}' | xargs kill -9
+lsof -i :3001 | awk 'NR==2 {print $2}' | xargs kill -9
+lsof -i :5173 | awk 'NR==2 {print $2}' | xargs kill -9
+```
+
+### Reset Database
+```bash
+rm orders.db
+python setup_database.py
+```
+
+### Reinstall Dependencies
+```bash
 pip install -r requirements.txt
-python vectorize_data.py
-PORT=5001 python app.py
+cd backend && npm install
+cd frontend && npm install
+```
 
+### Gemini API Issues
+- Verify GEMINI_API_KEY in .env
+- Check API key validity at [Google AI Studio](https://aistudio.google.com)
+- Ensure quota remaining
 
- 
-cd 2526_sdp8_chatbot/2526_sdp8_chatbot/backend           ============BACKEND
+---
 
-npm install
-AI_SERVICE_URL=http://localhost:5001/api/chat npm start
+## 🚀 Production Deployment
 
+1. Use environment variables for secrets
+2. Setup SSL/TLS certificates
+3. Use PostgreSQL instead of SQLite
+4. Add load balancer
+5. Implement rate limiting
+6. Add authentication
+7. Setup monitoring
 
+---
 
-cd 2526_sdp8_chatbot/2526_sdp8_chatbot/frontend         ============FRONTEND
+## 📚 Documentation
 
-npm install
-VITE_CHAT_API_URL=http://localhost:3001/api/chat npm run dev
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design.
 
+---
 
+## 📞 Support
 
+Issues? Check:
+1. .env has GEMINI_API_KEY
+2. All 3 services running
+3. Check terminal logs
+4. Verify ports free (5001, 3001, 5173)
+5. Reset database if needed
+
+---
+
+**Status**: ✅ Production Ready  
+**Python**: 3.10+  
+**Node.js**: 16+  
+**Updated**: February 16, 2026

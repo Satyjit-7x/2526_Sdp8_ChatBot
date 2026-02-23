@@ -12,13 +12,22 @@ const ProductList = () => {
 
     const fetchProducts = async () => {
         try {
-            const response = await fetch('http://localhost:5001/api/products');
+            // Try Node.js backend first (localhost:3001), then Flask (localhost:5001)
+            let response = await fetch('http://localhost:3001/api/products').catch(() => null);
+
+            if (!response || !response.ok) {
+                response = await fetch('http://localhost:5001/api/products');
+            }
+
             const data = await response.json();
-            if (data.products) {
+            if (data.products && Array.isArray(data.products)) {
                 setProducts(data.products);
+            } else if (Array.isArray(data)) {
+                setProducts(data);
             }
         } catch (error) {
             console.error('Error fetching products:', error);
+            setProducts([]);
         } finally {
             setIsLoading(false);
         }
