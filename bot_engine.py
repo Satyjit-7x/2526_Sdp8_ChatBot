@@ -1,9 +1,8 @@
-
 import chromadb
 from chromadb.utils import embedding_functions
 import os
 import sqlite3
-import google.generativeai as genai
+import google.genai as genai
 import json
 import re
 import random
@@ -14,9 +13,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configure Gemini
-GENAI_API_KEY = os.getenv("GEMINI_API_KEY")
+GENAI_API_KEY = os.getenv("AIzaSyDlkjZnYggtR3rYBXy7IB70_A8bkYnKEPg")
+# Initialize client with API key
 if GENAI_API_KEY:
-    genai.configure(api_key=GENAI_API_KEY)
+    client = genai.Client(api_key=AIzaSyDlkjZnYggtR3rYBXy7IB70_A8bkYnKEPg)
 
 # ── Status constants ────────────────────────────────────────────────────────
 VALID_STATUSES = {
@@ -39,8 +39,10 @@ class ChatbotEngine:
         self.collection = None
         self.ef = None
         self.model = None
+        self.client = None
         if GENAI_API_KEY:
-            self.model = genai.GenerativeModel('gemini-1.5-pro')
+            self.client = genai.Client(api_key=GENAI_API_KEY)
+            self.model = "gemini-2.0-flash-exp"
 
         # Initialize conversation history table if not exists
         self._init_conversation_table()
@@ -82,11 +84,14 @@ class ChatbotEngine:
 
     def _ask_gemini(self, prompt, fallback=""):
         """Call Gemini and return text. On failure, return *fallback*."""
-        if not self.model:
+        if not self.client:
             return fallback
         try:
-            response = self.model.generate_content(prompt)
-            return response.text.strip()
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt
+            )
+            return response.text
         except Exception as e:
             print(f"Gemini error: {e}")
             return fallback
@@ -1061,36 +1066,105 @@ Keep it conversational and helpful!"""
             self.save_conversation(session_id, user_query, response, sql=sql, op_type="ORDER_DETAIL")
             return response
 
-        # List view
+        # List view - Enhanced with smart status filtering
         status = self._extract_status(user_query)
         status_msg = status.lower() if status else "total"
-
-        affected_items = []
-        if len(data) == 1:
-            row = data[0]
-            oid = row[columns.index('order_id')] if 'order_id' in columns else row[0]
-            pname = row[columns.index('product_name')] if 'product_name' in columns else row[1]
-            st = row[columns.index('status')] if 'status' in columns else row[-1]
-            price = row[columns.index('price')] if 'price' in columns else None
-            qty = row[columns.index('quantity')] if 'quantity' in columns else 1
-            response = f"You have 1 {status_msg} order:\n📦 {pname} ({oid})\n   Status: {st}\n"
-            if price:
-                response += f"   Price: ₹{price} x {qty}\n"
-            affected_items.append(oid)
+        
+        # Check if user is asking for specific status orders
+        if status and status != "total":
+            # User wants filtered orders (e.g., "pending orders", "delivered orders")
+            status_col_index = None
+            for i, col in enumerate(columns):
+                if col.lower() == 'status':
+                    status_col_index = i
+                    break
+            
+            if status_col_index is not None:
+                filtered_data = [row for row in data if row[status_col_index].lower() == status.lower()]
+            
+            if not filtered_data:
+                response = f"No {status.lower()} orders found."
+            else:
+                response = f"You have {len(filtered_data)} {status.lower()} order{'s' if len(filtered_data) > 1 else ''}:\n\n"
+                for row in filtered_data:
+                    oid = row[columns.index('order_id')] if 'order_id' in columns else row[0]
+                    pname = row[columns.index('product_name')] if 'product_name' in columns else row[1]
+                    st = row[columns.index('status')] if 'status' in columns else row[-1]
+                    price = row[columns.index('price')] if 'price' in columns else None
+                    qty = row[columns.index('quantity')] if 'quantity' in columns else 1
+                    
+                    response += f"📦 {pname} ({oid})\n   Status: {st.title()}\n"
+                    if price:
+                        response += f"   Price: ₹{price} x {qty}\n"
+                    affected_items.append(oid)
         else:
-            response = f"You have {len(data)} {status_msg} order{'s' if len(data) > 1 else ''}:\n\n"
-            for row in data:
-                oid = row[columns.index('order_id')] if 'order_id' in columns else row[0]
-                pname = row[columns.index('product_name')] if 'product_name' in columns else row[1]
-                odate = row[columns.index('order_date')] if 'order_date' in columns else row[2]
-                st = row[columns.index('status')] if 'status' in columns else row[3]
-                price = row[columns.index('price')] if 'price' in columns else None
-                qty = row[columns.index('quantity')] if 'quantity' in columns else 1
-                response += f"📦 {pname} ({oid})\n   Status: {st} | Date: {odate}"
+            # Original logic for total orders or no specific status
+            affected_items = []
+            if len(data) == 1:
+                row = data[0]
+                # Find column indices safely
+                order_id_col = None
+                product_name_col = None
+                status_col = None
+                price_col = None
+                quantity_col = None
+                
+                for i, col in enumerate(columns):
+                    col_lower = col.lower()
+                    if 'order_id' in col_lower and order_id_col is None:
+                        order_id_col = i
+                    elif 'product_name' in col_lower and product_name_col is None:
+                        product_name_col = i
+                    elif 'status' in col_lower and status_col is None:
+                        status_col = i
+                    elif 'price' in col_lower and price_col is None:
+                        price_col = i
+                    elif 'quantity' in col_lower and quantity_col is None:
+                        quantity_col = i
+                
+                oid = row[order_id_col] if order_id_col is not None else row[0]
+                pname = row[product_name_col] if product_name_col is not None else row[1]
+                st = row[status_col] if status_col is not None else row[-1]
+                price = row[price_col] if price_col is not None else None
+                qty = row[quantity_col] if quantity_col is not None else 1
+                
+                response = f"You have 1 {status_msg} order:\n📦 {pname} ({oid})\n   Status: {st.title()}\n"
                 if price:
-                    response += f" | ₹{price} x {qty}"
-                response += "\n\n"
+                    response += f"   Price: ₹{price} x {qty}\n"
                 affected_items.append(oid)
+            else:
+                response = f"You have {len(data)} {status_msg} order{'s' if len(data) > 1 else ''}:\n\n"
+                for row in data:
+                    # Find column indices safely for each row
+                    order_id_col = None
+                    product_name_col = None
+                    status_col = None
+                    price_col = None
+                    quantity_col = None
+                    
+                    for i, col in enumerate(columns):
+                        col_lower = col.lower()
+                        if 'order_id' in col_lower and order_id_col is None:
+                            order_id_col = i
+                        elif 'product_name' in col_lower and product_name_col is None:
+                            product_name_col = i
+                        elif 'status' in col_lower and status_col is None:
+                            status_col = i
+                        elif 'price' in col_lower and price_col is None:
+                            price_col = i
+                        elif 'quantity' in col_lower and quantity_col is None:
+                            quantity_col = i
+                    
+                    oid = row[order_id_col] if order_id_col is not None else row[0]
+                    pname = row[product_name_col] if product_name_col is not None else row[1]
+                    st = row[status_col] if status_col is not None else row[-1]
+                    price = row[price_col] if price_col is not None else None
+                    qty = row[quantity_col] if quantity_col is not None else 1
+                    
+                    response += f"📦 {pname} ({oid})\n   Status: {st.title()}\n"
+                    if price:
+                        response += f"   Price: ₹{price} x {qty}\n"
+                    affected_items.append(oid)
 
         self.save_conversation(session_id, user_query, response, sql=sql,
                                op_type="READ", affected_items=json.dumps(affected_items))
