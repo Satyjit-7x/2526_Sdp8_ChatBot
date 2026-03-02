@@ -6,7 +6,7 @@ import '../App.css';
 const chatApiUrl = 'http://localhost:3001/api/chat';
 const ordersApiUrl = 'http://localhost:5001/api/orders';
 
-const ChatPage = () => {
+const ChatPage = ({ onSwitchToAdmin }) => {
   const { user, token, logout } = useAuth();
   const [messages, setMessages] = useState([
     { id: 1, sender: 'bot', text: `Hi ${user?.name || 'there'}! 👋 I can help you browse products, manage orders, and more. Ask me anything!` },
@@ -80,6 +80,7 @@ const ChatPage = () => {
         body: JSON.stringify({
           message: inputValue.trim(),
           user_id: user?.user_id || 'default',
+          role: user?.role || 'user',
         }),
       });
 
@@ -155,6 +156,9 @@ const ChatPage = () => {
           </div>
           <div className="header-right">
             <button className="clear-chat-btn" onClick={clearChat}>🗑️ Clear</button>
+            {onSwitchToAdmin && (
+              <button className="clear-chat-btn" onClick={onSwitchToAdmin} style={{ background: 'rgba(99,102,241,0.25)', borderColor: 'rgba(99,102,241,0.5)' }}>⚙️ Admin</button>
+            )}
             <div className="user-info">
               <span className="user-name">{user?.name || 'Guest'}</span>
               <button className="logout-btn" onClick={logout}>Logout</button>

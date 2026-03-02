@@ -28,7 +28,7 @@ function verifyPassword(password, storedHash) {
   }
 }
 
-// ---------- ensure users table exists ----------
+// ---------- ensure users table exists (with role column) ----------
 
 function ensureUsersTable() {
   const db = new Database(DB_PATH);
@@ -38,14 +38,39 @@ function ensureUsersTable() {
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       name TEXT,
+      role TEXT DEFAULT 'user',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Add role column if missing (for existing databases)
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'`);
+  } catch {
+    // Column already exists — ignore
+  }
+
+  db.close();
+}
+
+// ---------- seed default admin account ----------
+
+function seedAdmin() {
+  const db = new Database(DB_PATH);
+  const existing = db.prepare('SELECT user_id FROM users WHERE email = ?').get('admin@admin.com');
+  if (!existing) {
+    const passwordHash = hashPassword('admin123');
+    db.prepare(
+      'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)'
+    ).run('admin@admin.com', passwordHash, 'Admin', 'admin');
+    console.log('✅ Default admin account created: admin@admin.com / admin123');
+  }
   db.close();
 }
 
 // Run once on startup
 ensureUsersTable();
+seedAdmin();
 
 // ---------- routes ----------
 
@@ -74,16 +99,16 @@ router.post('/register', (req, res) => {
     const displayName = name || email.split('@')[0];
 
     const result = db.prepare(
-      'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)'
-    ).run(email, passwordHash, displayName);
+      'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)'
+    ).run(email, passwordHash, displayName, 'user');
 
     db.close();
 
     const userId = result.lastInsertRowid;
 
-    // Create JWT
+    // Create JWT (includes role)
     const token = jwt.sign(
-      { user_id: userId, email },
+      { user_id: userId, email, role: 'user' },
       SECRET_KEY,
       { expiresIn: '7d' }
     );
@@ -91,7 +116,7 @@ router.post('/register', (req, res) => {
     res.json({
       success: true,
       token,
-      user: { user_id: userId, email, name: displayName }
+      user: { user_id: userId, email, name: displayName, role: 'user' }
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -110,7 +135,7 @@ router.post('/login', (req, res) => {
 
     const db = new Database(DB_PATH);
     const user = db.prepare(
-      'SELECT user_id, email, name, password_hash FROM users WHERE email = ?'
+      'SELECT user_id, email, name, password_hash, role FROM users WHERE email = ?'
     ).get(email);
     db.close();
 
@@ -122,9 +147,11 @@ router.post('/login', (req, res) => {
       return res.status(401).json({ error: 'Incorrect password' });
     }
 
-    // Create JWT
+    const userRole = user.role || 'user';
+
+    // Create JWT (includes role)
     const token = jwt.sign(
-      { user_id: user.user_id, email: user.email },
+      { user_id: user.user_id, email: user.email, role: userRole },
       SECRET_KEY,
       { expiresIn: '7d' }
     );
@@ -132,7 +159,7 @@ router.post('/login', (req, res) => {
     res.json({
       success: true,
       token,
-      user: { user_id: user.user_id, email: user.email, name: user.name }
+      user: { user_id: user.user_id, email: user.email, name: user.name, role: userRole }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -152,7 +179,7 @@ router.post('/verify', (req, res) => {
     const decoded = jwt.verify(token, SECRET_KEY);
     res.json({
       success: true,
-      user: { user_id: decoded.user_id, email: decoded.email }
+      user: { user_id: decoded.user_id, email: decoded.email, role: decoded.role || 'user' }
     });
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });

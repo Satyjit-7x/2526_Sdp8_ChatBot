@@ -741,13 +741,13 @@ Be concise (2-3 sentences). Never mention databases or technical details."""
     # MAIN ENTRY POINT
     # ════════════════════════════════════════════════════════════════════════
 
-    def get_response(self, user_query, session_id="default"):
+    def get_response(self, user_query, session_id="default", role="user"):
         """
         Main pipeline:
         1. Check pending confirmations
         2. Retrieve RAG context (ChromaDB trained model)
         3. Classify intent (Gemini LLM)
-        4. Execute action
+        4. Execute action (with role-based permissions)
         5. Format response (Gemini + RAG)
         """
         # Step 0: Pending confirmation
@@ -843,6 +843,11 @@ Do NOT say the order has been placed. Do NOT mention order IDs. This is just a p
                     return resp
 
             elif intent == "UPDATE_ORDER":
+                # Only admins can update order status
+                if role != "admin":
+                    resp = "🔒 Sorry, only administrators can update order statuses (e.g., Pending → Shipped). If you need a status change, please contact an admin.\n\nI can still help you with viewing, creating, or deleting orders!"
+                    self._save(session_id, user_query, resp, op_type="BLOCKED")
+                    return resp
                 data = self._do_update(entities)
                 if isinstance(data, str):
                     self._save(session_id, user_query, data)

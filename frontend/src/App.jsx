@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import './App.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './components/LoginPage';
 import ChatPage from './components/ChatPage';
+import AdminPanel from './components/AdminPanel';
 
 function AppContent() {
-  const { isAuthenticated, loading, login } = useAuth();
+  const { isAuthenticated, loading, login, isAdmin } = useAuth();
+  const [showChat, setShowChat] = useState(false);
 
   if (loading) {
     return (
@@ -18,9 +21,18 @@ function AppContent() {
     return <LoginPage onLoginSuccess={(user, token) => login(user, token)} />;
   }
 
+  // Admin gets toggle between admin panel and chat
+  if (isAdmin && !showChat) {
+    return (
+      <div className="root-app">
+        <AdminPanel onSwitchToChat={() => setShowChat(true)} />
+      </div>
+    );
+  }
+
   return (
     <div className="root-app">
-      <ChatPage />
+      <ChatPage onSwitchToAdmin={isAdmin ? () => setShowChat(false) : null} />
     </div>
   );
 }
