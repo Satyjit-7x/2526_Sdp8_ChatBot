@@ -219,7 +219,10 @@ Respond with ONLY valid JSON:
 
         # General questions take priority (e.g., "return policy" ≠ returned orders)
         general_patterns = ['policy', 'how to', 'how do', 'what is', 'help me', 'tell me about',
-                            'shipping', 'refund', 'contact', 'support', 'warranty', 'exchange']
+                            'shipping', 'refund', 'contact', 'support', 'warranty', 'exchange',
+                            'what day', 'what time', 'date today', 'who are you', 'what are you',
+                            'what can you', 'about this', 'this platform', 'thank', 'thanks',
+                            'bye', 'goodbye', 'see you', 'how are you', 'your name']
         if any(p in q for p in general_patterns):
             return {"intent": "GENERAL_QUERY", "entities": ent}
 
@@ -481,6 +484,129 @@ Rules:
         return self._ask_gemini(prompt, fallback=data_desc)
 
     # ════════════════════════════════════════════════════════════════════════
+    # CONVERSATIONAL HANDLERS (Greeting, General, Casual)
+    # ════════════════════════════════════════════════════════════════════════
+
+    def _handle_greeting(self, user_query, rag_ctx="", conv_ctx=""):
+        """Handle greetings with warm, contextual responses."""
+        q = user_query.lower()
+
+        # Build time-aware fallback
+        from datetime import datetime
+        hour = datetime.now().hour
+        if hour < 12:
+            time_greeting = "Good morning"
+        elif hour < 17:
+            time_greeting = "Good afternoon"
+        else:
+            time_greeting = "Good evening"
+
+        fallback_greetings = [
+            f"{time_greeting}! 👋 I'm your e-commerce assistant. I can help you browse products, manage orders, track deliveries, and more. What can I do for you?",
+            f"Hi there! 👋 Welcome! I can help you with:\n• 🛍️ Browse & buy products\n• 📦 View & manage orders\n• ✏️ Update order status\n• ❓ Answer your questions\n\nWhat would you like to do?",
+            f"Hey! 😊 I'm here to help with your shopping needs. You can ask me to show products, place orders, check order status, or ask any questions!",
+        ]
+
+        # Pick a contextual fallback
+        if 'morning' in q:
+            fallback = "Good morning! ☀️ Ready to help you with your orders and products today. What can I do for you?"
+        elif 'afternoon' in q:
+            fallback = "Good afternoon! 🌤️ How can I assist you today? I can help with orders, products, or any questions."
+        elif 'evening' in q or 'night' in q:
+            fallback = "Good evening! 🌙 What can I help you with? Browse products, check orders, or ask me anything!"
+        else:
+            fallback = random.choice(fallback_greetings)
+
+        # Try Gemini for a more natural response
+        prompt = f"""You are a friendly e-commerce chatbot assistant. The user is greeting you.
+
+User said: "{user_query}"
+{conv_ctx}
+
+Respond warmly (2-3 sentences). Mention that you can help with:
+- Browsing and buying products
+- Managing orders (create, update, delete, track)
+- Answering questions about policies, shipping, etc.
+Use a relevant emoji or two. Be warm and inviting."""
+
+        return self._ask_gemini(prompt, fallback)
+
+    def _handle_general(self, user_query, rag_ctx="", conv_ctx=""):
+        """Handle general conversation: date/time, platform info, thanks, casual chat."""
+        q = user_query.lower().strip()
+
+        # ── Date/Time questions ──
+        if any(w in q for w in ['date', 'day today', 'today', 'what time', 'current time', 'what day']):
+            from datetime import datetime
+            now = datetime.now()
+            date_str = now.strftime("%A, %B %d, %Y")
+            time_str = now.strftime("%I:%M %p")
+            fallback = f"📅 Today is **{date_str}** and the time is **{time_str}**. Is there anything else I can help you with?"
+
+            prompt = f"""User asked: "{user_query}"
+Current date: {date_str}, Time: {time_str}
+Give a friendly reply mentioning the date/time, then offer to help with orders or products. Keep it to 2 sentences."""
+            return self._ask_gemini(prompt, fallback)
+
+        # ── Platform/About questions ──
+        if any(w in q for w in ['what is this', 'about this', 'what can you do', 'who are you',
+                                 'what are you', 'your purpose', 'platform', 'this app', 'capabilities']):
+            fallback = ("🤖 I'm an AI-powered e-commerce assistant! Here's what I can do:\n\n"
+                        "• 🛍️ **Browse Products** — Search by category or name\n"
+                        "• 🛒 **Buy Products** — Place orders instantly\n"
+                        "• 📦 **Manage Orders** — View, update status, or delete orders\n"
+                        "• 📊 **Track Orders** — Check order status and details\n"
+                        "• ❓ **Answer Questions** — Shipping, returns, policies & more\n\n"
+                        "Just type your question or request naturally!")
+
+            prompt = f"""User asked: "{user_query}"
+You are an AI e-commerce chatbot built with RAG (Retrieval Augmented Generation) + Gemini LLM.
+You help users browse products, place orders, manage orders, and answer questions.
+Explain what you can do in a friendly way. Use emojis and bullet points. Keep it concise (4-5 lines)."""
+            return self._ask_gemini(prompt, fallback)
+
+        # ── Thank you ──
+        if any(w in q for w in ['thank', 'thanks', 'thx', 'appreciate']):
+            fallback = "You're welcome! 😊 Happy to help. Let me know if there's anything else you need!"
+            prompt = f'User said: "{user_query}"\nRespond warmly to their thanks. Offer continued help. Keep it to 1-2 sentences.'
+            return self._ask_gemini(prompt, fallback)
+
+        # ── Goodbye ──
+        if any(w in q for w in ['bye', 'goodbye', 'see you', 'good night', 'cya', 'ttyl']):
+            fallback = "Goodbye! 👋 Have a great day! Come back anytime you need help with orders or products. 😊"
+            prompt = f'User said: "{user_query}"\nSay a warm goodbye. Keep it brief (1-2 sentences).'
+            return self._ask_gemini(prompt, fallback)
+
+        # ── Help ──
+        if any(w in q for w in ['help', 'how to use', 'guide', 'tutorial']):
+            fallback = ("Here's how to use me! 💡\n\n"
+                        "📝 **Try these commands:**\n"
+                        "• \"Show my orders\" — View all your orders\n"
+                        "• \"Show pending orders\" — Filter by status\n"
+                        "• \"Buy gaming mouse\" — Purchase a product\n"
+                        "• \"Show products\" — Browse the catalog\n"
+                        "• \"Delete order ORD123\" — Remove an order\n"
+                        "• \"Update ORD123 to shipped\" — Change order status\n\n"
+                        "Or just ask me anything in natural language! 🗣️")
+            return self._ask_gemini(
+                f'User asked for help: "{user_query}"\nList the main things you can do with example commands. Use emojis. Be concise.',
+                fallback)
+
+        # ── Fallback: RAG + Gemini ──
+        prompt = f"""You are a helpful e-commerce chatbot assistant.
+
+User question: "{user_query}"
+{f"Knowledge base info:{chr(10)}{rag_ctx}" if rag_ctx else ""}
+{conv_ctx}
+
+Give a helpful, friendly answer. Use knowledge base info if relevant.
+If you don't know the answer, say so honestly and suggest what you CAN help with (orders, products, policies).
+Be concise (2-3 sentences). Never mention databases or technical details."""
+
+        fallback = rag_ctx if rag_ctx else "I'm not sure about that, but I can help you with:\n• 🛍️ Browsing and buying products\n• 📦 Managing your orders\n• ❓ Answering questions about shipping, returns, etc.\n\nWhat would you like to do?"
+        return self._ask_gemini(prompt, fallback)
+
+    # ════════════════════════════════════════════════════════════════════════
     # MAIN ENTRY POINT
     # ════════════════════════════════════════════════════════════════════════
 
@@ -519,7 +645,7 @@ Rules:
         # Step 4 & 5: Execute + Format
         try:
             if intent == "GREETING":
-                resp = self._format_response(user_query, None, intent, rag_ctx, conv_ctx)
+                resp = self._handle_greeting(user_query, rag_ctx, conv_ctx)
                 self._save(session_id, user_query, resp, op_type="GREETING")
                 return resp
 
@@ -591,15 +717,7 @@ Rules:
                 return resp
 
             else:  # GENERAL_QUERY
-                prompt = f"""You are a helpful e-commerce chatbot assistant.
-
-User question: "{user_query}"
-{f"Knowledge base info:{chr(10)}{rag_ctx}" if rag_ctx else ""}
-{conv_ctx}
-
-Give a helpful, friendly answer. Use knowledge base info if relevant. Be concise (2-3 sentences). Never mention databases or technical details."""
-                fallback = rag_ctx if rag_ctx else "I can help with orders, products, and general queries. What would you like to know?"
-                resp = self._ask_gemini(prompt, fallback)
+                resp = self._handle_general(user_query, rag_ctx, conv_ctx)
                 self._save(session_id, user_query, resp, op_type="GENERAL")
                 return resp
 
