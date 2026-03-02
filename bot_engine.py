@@ -333,8 +333,16 @@ Respond with ONLY valid JSON:
         if ent["order_id"]:
             return {"intent": "ORDER_DETAIL", "entities": ent}
 
-        if any(w in q for w in ['product', 'browse', 'catalog', 'categor']):
+        if any(w in q for w in ['product', 'products', 'item', 'items', 'browse', 'catalog', 'categor']):
             return {"intent": "SHOW_PRODUCTS", "entities": ent}
+
+        # Category-only phrasing without explicit 'show/list' keywords
+        # e.g. "I want gaming items", "gaming products"
+        try:
+            if any(cat.lower() in q for cat in self.get_all_categories()) and any(w in q for w in ['item', 'items', 'product', 'products']):
+                return {"intent": "SHOW_PRODUCTS", "entities": ent}
+        except Exception:
+            pass
 
         if ent["status"] or any(w in q for w in ['orders', 'order list', 'my order']):
             return {"intent": "SHOW_ORDERS", "entities": ent}
@@ -365,8 +373,8 @@ Respond with ONLY valid JSON:
         try:
             if category:
                 return self._db_fetch_all(
-                    "SELECT product_id, name, description, price, category FROM products WHERE LOWER(category) LIKE LOWER(?) AND in_stock = 1 ORDER BY price",
-                    (f"%{category}%",))
+                    "SELECT product_id, name, description, price, category FROM products WHERE LOWER(category) = LOWER(?) AND in_stock = 1 ORDER BY price",
+                    (category,))
             elif search_term:
                 p = f"%{search_term}%"
                 return self._db_fetch_all(
@@ -377,6 +385,31 @@ Respond with ONLY valid JSON:
                     "SELECT product_id, name, description, price, category FROM products WHERE in_stock = 1 ORDER BY category, name")
         except Exception:
             return []
+
+    def _extract_category_from_message(self, user_query):
+        """Return an exact category (as stored in DB) if the user message mentions it."""
+        try:
+            q = (user_query or "").lower()
+            for cat in self.get_all_categories():
+                cat_lower = (cat or "").lower()
+                if not cat_lower:
+                    continue
+                if re.search(rf"\\b{re.escape(cat_lower)}\\b", q) or cat_lower in q:
+                    return cat
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
+    def _format_products_strict(products):
+        """Strict output format: Product Name, Price, Description (no IDs, no categories)."""
+        lines = []
+        for _pid, name, description, price, _cat in products:
+            lines.append(f"{name}")
+            lines.append(f"₹{price}")
+            lines.append(f"{description}")
+            lines.append("")
+        return "\n".join(lines).rstrip()
 
     def _find_product(self, name=None, product_id=None):
         try:
@@ -863,16 +896,21 @@ Do NOT say the order has been placed. Do NOT mention order IDs. This is just a p
                 return result
 
             elif intent == "SHOW_PRODUCTS":
+                requested_category = self._extract_category_from_message(user_query)
+                if requested_category:
+                    products = self._get_products(category=requested_category)
+                    if not products:
+                        resp = f"No products found in the {requested_category} category."
+                        self._save(session_id, user_query, resp, op_type="PRODUCT_LIST")
+                        return resp
+                    resp = self._format_products_strict(products)
+                    self._save(session_id, user_query, resp, op_type="PRODUCT_LIST")
+                    return resp
+
                 search = entities.get("search_term") or entities.get("product_name")
                 products = []
                 if search:
-                    cats = self.get_all_categories()
-                    for c in cats:
-                        if search.lower() in c.lower() or c.lower() in search.lower():
-                            products = self._get_products(category=c)
-                            break
-                    if not products:
-                        products = self._get_products(search_term=search)
+                    products = self._get_products(search_term=search)
                 if not products:
                     products = self._get_products()
                 resp = self._format_response(user_query, products, intent, rag_ctx, conv_ctx)
