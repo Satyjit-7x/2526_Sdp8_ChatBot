@@ -27,11 +27,13 @@ const ChatPage = ({ onSwitchToAdmin }) => {
     scrollToBottom();
   }, [messages]);
 
-  // Fetch orders from database
+  // Fetch orders from database (regular users see only their own, admin sees all)
   const fetchOrders = async () => {
     try {
       const userId = user?.user_id || '';
-      const url = userId ? `${ordersApiUrl}?user_id=${userId}` : ordersApiUrl;
+      const isAdmin = user?.role === 'admin';
+      // Admin sees all orders, regular users filtered by user_id
+      const url = isAdmin ? ordersApiUrl : (userId ? `${ordersApiUrl}?user_id=${userId}` : ordersApiUrl);
       const response = await fetch(url);
       const data = await response.json();
       if (data.orders) {

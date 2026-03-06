@@ -28,14 +28,27 @@ router.post('/', async (req, res) => {
     // Token verification failed, use default or provided user_id
   }
 
-  // Forward to Flask AI service with user_id for session tracking
+  // Extract role from JWT or request body
+  let userRole = req.body?.role || 'user';
+  try {
+    const authToken = req.headers.authorization?.split(' ')[1];
+    if (authToken) {
+      const decodedToken = jwt.verify(authToken, SECRET_KEY);
+      userRole = decodedToken.role || userRole;
+    }
+  } catch (e) {
+    // Token verification failed, use provided role
+  }
+
+  // Forward to Flask AI service with user_id and role for session tracking
   try {
     const aiRes = await fetch(AI_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: message,
-        user_id: sessionUserId
+        user_id: sessionUserId,
+        role: userRole
       }),
     });
 

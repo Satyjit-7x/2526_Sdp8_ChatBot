@@ -52,24 +52,38 @@ def chat():
 
 @app.route("/api/orders", methods=["GET"])
 def get_orders():
-    """Get all orders from database with creator info."""
+    """Get orders from database with creator info. Supports ?user_id= filter for regular users."""
     try:
         import sqlite3
+        user_id = request.args.get('user_id')
         conn = sqlite3.connect('orders.db')
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT o.order_id, o.product_name, o.price, o.order_date, o.status, o.session_id,
-                   COALESCE(u.name, 'Unknown') as creator_name, COALESCE(u.email, '') as creator_email
-            FROM orders o
-            LEFT JOIN users u ON CAST(o.session_id AS TEXT) = CAST(u.user_id AS TEXT)
-            ORDER BY o.order_date DESC
-        """)
+
+        if user_id:
+            # Regular user: only their orders
+            cursor.execute("""
+                SELECT o.order_id, o.product_name, o.price, o.order_date, o.status, o.session_id,
+                       COALESCE(u.name, 'Unknown') as creator_name, COALESCE(u.email, '') as creator_email
+                FROM orders o
+                LEFT JOIN users u ON CAST(o.session_id AS TEXT) = CAST(u.user_id AS TEXT)
+                WHERE CAST(o.session_id AS TEXT) = CAST(? AS TEXT)
+                ORDER BY o.order_date DESC
+            """, (user_id,))
+        else:
+            # Admin: all orders
+            cursor.execute("""
+                SELECT o.order_id, o.product_name, o.price, o.order_date, o.status, o.session_id,
+                       COALESCE(u.name, 'Unknown') as creator_name, COALESCE(u.email, '') as creator_email
+                FROM orders o
+                LEFT JOIN users u ON CAST(o.session_id AS TEXT) = CAST(u.user_id AS TEXT)
+                ORDER BY o.order_date DESC
+            """)
         rows = cursor.fetchall()
         conn.close()
 
         orders = [{
             "orderId": r[0], "productName": r[1], "price": r[2],
-            "orderDate": r[3], "status": r[4],
+            "orderDate": r[3], "status": r[4], "sessionId": r[5],
             "creatorName": r[6], "creatorEmail": r[7]
         } for r in rows]
         return jsonify({"orders": orders})
@@ -84,17 +98,20 @@ def get_orders():
 
 @app.route("/api/products", methods=["GET"])
 def get_products():
-    """Get all available products, optionally filtered by category."""
+    """Get products, optionally filtered by category. Use ?all=1 to include out-of-stock."""
     try:
         import sqlite3
         category = request.args.get('category')
+        show_all = request.args.get('all')
         conn = sqlite3.connect('orders.db')
         cursor = conn.cursor()
 
+        stock_filter = "" if show_all else "AND in_stock = 1"
         if category:
-            cursor.execute("SELECT product_id, name, description, price, category, in_stock FROM products WHERE category = ? AND in_stock = 1 ORDER BY name", (category,))
+            cursor.execute(f"SELECT product_id, name, description, price, category, in_stock FROM products WHERE category = ? {stock_filter} ORDER BY name", (category,))
         else:
-            cursor.execute("SELECT product_id, name, description, price, category, in_stock FROM products WHERE in_stock = 1 ORDER BY category, name")
+            where = "WHERE 1=1" if show_all else "WHERE in_stock = 1"
+            cursor.execute(f"SELECT product_id, name, description, price, category, in_stock FROM products {where} ORDER BY category, name")
 
         rows = cursor.fetchall()
         conn.close()
@@ -160,6 +177,118 @@ def search_products():
         return jsonify({"products": products})
     except Exception as e:
         return jsonify({"products": [], "error": str(e)}), 500
+
+
+@app.route("/api/products", methods=["POST"])
+def create_product():
+    """Create a new product (admin only)."""
+    try:
+        import sqlite3
+        data = request.get_json()
+        name = data.get("name", "").strip()
+        description = data.get("description", "").strip()
+        price = data.get("price")
+        category = data.get("category", "").strip()
+        in_stock = data.get("inStock", True)
+
+        if not name or not price or not category:
+            return jsonify({"error": "Name, price, and category are required."}), 400
+
+        try:
+            price = float(price)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Price must be a valid number."}), 400
+
+        if price <= 0:
+            return jsonify({"error": "Price must be greater than 0."}), 400
+
+        conn = sqlite3.connect('orders.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO products (name, description, price, category, in_stock) VALUES (?, ?, ?, ?, ?)",
+            (name, description, price, category, 1 if in_stock else 0)
+        )
+        product_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "product": {
+                "productId": product_id,
+                "name": name,
+                "description": description,
+                "price": price,
+                "category": category,
+                "inStock": bool(in_stock)
+            }
+        }), 201
+    except Exception as e:
+        logger.error(f"Error creating product: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/products/<int:product_id>", methods=["PUT"])
+def update_product(product_id):
+    """Update a product (admin only). Supports updating in_stock, name, description, price, category."""
+    try:
+        import sqlite3
+        data = request.get_json()
+        conn = sqlite3.connect('orders.db')
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT product_id FROM products WHERE product_id = ?", (product_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({"error": "Product not found"}), 404
+
+        updates = []
+        values = []
+
+        if "inStock" in data:
+            updates.append("in_stock = ?")
+            values.append(1 if data["inStock"] else 0)
+        if "name" in data and data["name"].strip():
+            updates.append("name = ?")
+            values.append(data["name"].strip())
+        if "description" in data:
+            updates.append("description = ?")
+            values.append(data["description"].strip() if data["description"] else "")
+        if "price" in data:
+            try:
+                p = float(data["price"])
+                if p > 0:
+                    updates.append("price = ?")
+                    values.append(p)
+            except (ValueError, TypeError):
+                pass
+        if "category" in data and data["category"].strip():
+            updates.append("category = ?")
+            values.append(data["category"].strip())
+
+        if not updates:
+            conn.close()
+            return jsonify({"error": "No valid fields to update."}), 400
+
+        values.append(product_id)
+        cursor.execute(f"UPDATE products SET {', '.join(updates)} WHERE product_id = ?", values)
+        conn.commit()
+
+        # Return updated product
+        cursor.execute("SELECT product_id, name, description, price, category, in_stock FROM products WHERE product_id = ?", (product_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "product": {
+                "productId": row[0], "name": row[1], "description": row[2],
+                "price": row[3], "category": row[4], "inStock": bool(row[5])
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error updating product: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/reset", methods=["POST"])

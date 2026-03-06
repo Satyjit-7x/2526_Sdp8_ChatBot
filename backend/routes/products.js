@@ -69,4 +69,39 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// POST /api/products - Create a new product (admin)
+router.post('/', async (req, res) => {
+  try {
+    const pythonRes = await fetch(`${PYTHON_AI_URL.replace('/api/chat', '')}/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+
+    const data = await pythonRes.json();
+    res.status(pythonRes.status).json(data);
+  } catch (err) {
+    console.error('Error creating product:', err);
+    res.status(500).json({ error: 'Could not create product' });
+  }
+});
+
+// PUT /api/products/:id - Update a product (admin)
+router.put('/:id', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const pythonRes = await fetch(`${PYTHON_AI_URL.replace('/api/chat', '')}/products/${productId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+
+    const data = await pythonRes.json();
+    res.status(pythonRes.status).json(data);
+  } catch (err) {
+    console.error('Error updating product:', err);
+    res.status(500).json({ error: 'Could not update product' });
+  }
+});
+
 module.exports = router;

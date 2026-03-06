@@ -193,25 +193,41 @@ class ChatbotEngine:
             print(f"[Context Resolve Error] {e}")
         return {"product_name": None, "order_id": None}
 
-    def _find_orders_by_product_name(self, product_name):
-        """Find orders matching a product name (fuzzy match)."""
+    def _find_orders_by_product_name(self, product_name, session_id=None, role="user"):
+        """Find orders matching a product name (fuzzy match). Filters by session_id for regular users."""
         try:
-            # Try exact match first
-            rows = self._db_fetch_all(
-                "SELECT order_id, product_name, price, quantity, order_date, status "
-                "FROM orders WHERE LOWER(product_name) = LOWER(?) "
-                "ORDER BY order_date DESC",
-                (product_name,)
-            )
-            if rows:
-                return rows
-            # Fall back to fuzzy match
-            return self._db_fetch_all(
-                "SELECT order_id, product_name, price, quantity, order_date, status "
-                "FROM orders WHERE LOWER(product_name) LIKE LOWER(?) "
-                "ORDER BY order_date DESC",
-                (f"%{product_name}%",)
-            )
+            if role == "admin":
+                # Admin sees all orders
+                rows = self._db_fetch_all(
+                    "SELECT order_id, product_name, price, quantity, order_date, status "
+                    "FROM orders WHERE LOWER(product_name) = LOWER(?) "
+                    "ORDER BY order_date DESC",
+                    (product_name,)
+                )
+                if rows:
+                    return rows
+                return self._db_fetch_all(
+                    "SELECT order_id, product_name, price, quantity, order_date, status "
+                    "FROM orders WHERE LOWER(product_name) LIKE LOWER(?) "
+                    "ORDER BY order_date DESC",
+                    (f"%{product_name}%",)
+                )
+            else:
+                # Regular user sees only their own orders
+                rows = self._db_fetch_all(
+                    "SELECT order_id, product_name, price, quantity, order_date, status "
+                    "FROM orders WHERE LOWER(product_name) = LOWER(?) AND session_id = ? "
+                    "ORDER BY order_date DESC",
+                    (product_name, session_id)
+                )
+                if rows:
+                    return rows
+                return self._db_fetch_all(
+                    "SELECT order_id, product_name, price, quantity, order_date, status "
+                    "FROM orders WHERE LOWER(product_name) LIKE LOWER(?) AND session_id = ? "
+                    "ORDER BY order_date DESC",
+                    (f"%{product_name}%", session_id)
+                )
         except Exception:
             return []
 
@@ -244,10 +260,13 @@ Intents: GREETING, SHOW_ORDERS, ORDER_DETAIL, CREATE_ORDER, BUY_PRODUCT, UPDATE_
 {context_str}
 
 IMPORTANT CONTEXT RULES:
-- If the user says "delete that", "cancel it", "remove that order", "update it", etc., look at the conversation history to find which order they are referring to. Set refers_to_previous to true.
+- If the user says "return ord123", "cancel ord123", "cancel my order", "return this order", these are UPDATE_ORDER intents with new_status set to "Returned" or "Cancelled" respectively.
+- If the user says "delete that", "remove that order", "update it", etc., look at the conversation history to find which order they are referring to. Set refers_to_previous to true.
 - If the user mentions a product NAME (e.g. "delete my gaming mouse order"), extract it as product_name.
 - If the user provides an order ID like ORD123, extract it as order_id.
 - If the conversation history mentions a specific order and the user refers to it with "that", "it", "this", resolve the order_id from the history.
+- "cancel" means UPDATE_ORDER with new_status="Cancelled", NOT DELETE_ORDER.
+- "return" (when referring to an order, not return policy) means UPDATE_ORDER with new_status="Returned".
 
 User message: "{user_query}"
 
@@ -275,12 +294,14 @@ Respond with ONLY valid JSON:
                "product_id": None, "search_term": None, "new_status": None}
 
         # General questions take priority (e.g., "return policy" ≠ returned orders)
+        # But NOT if there's an order ID present (e.g., "return ord836" is an action)
         general_patterns = ['policy', 'how to', 'how do', 'what is', 'help me', 'tell me about',
                             'shipping', 'refund', 'contact', 'support', 'warranty', 'exchange',
                             'what day', 'what time', 'date today', 'who are you', 'what are you',
                             'what can you', 'about this', 'this platform', 'thank', 'thanks',
                             'bye', 'goodbye', 'see you', 'how are you', 'your name']
-        if any(p in q for p in general_patterns):
+        has_order_ref = bool(re.search(r'ord\d+', q, re.IGNORECASE))
+        if not has_order_ref and any(p in q for p in general_patterns):
             return {"intent": "GENERAL_QUERY", "entities": ent}
 
         oid = re.search(r'(ord\d+)', q, re.IGNORECASE)
@@ -304,6 +325,17 @@ Respond with ONLY valid JSON:
 
         if any(w in q for w in ['delete', 'remove']) and ('order' in q or ent["order_id"] or has_context_ref):
             return {"intent": "DELETE_ORDER", "refers_to_previous": has_context_ref, "entities": ent}
+
+        # "cancel ord123", "return ord123", "cancel my order", "return this order"
+        if any(w in q for w in ['cancel', 'return']) and (ent["order_id"] or 'order' in q or has_context_ref):
+            # Map cancel/return to the appropriate status
+            if 'cancel' in q:
+                ent["new_status"] = "Cancelled"
+            elif 'return' in q:
+                ent["new_status"] = "Returned"
+            else:
+                ent["new_status"] = ent.pop("status", None)
+            return {"intent": "UPDATE_ORDER", "refers_to_previous": has_context_ref, "entities": ent}
 
         if any(w in q for w in ['update', 'change', 'modify', 'mark', 'set']) and ('order' in q or ent["order_id"] or has_context_ref):
             ent["new_status"] = ent.pop("status", None)
@@ -331,6 +363,10 @@ Respond with ONLY valid JSON:
             return {"intent": "CREATE_ORDER", "entities": ent}
 
         if ent["order_id"]:
+            # If a status is also detected, this is an update (e.g., "return ord836")
+            if ent.get("status"):
+                ent["new_status"] = ent.pop("status", None)
+                return {"intent": "UPDATE_ORDER", "refers_to_previous": False, "entities": ent}
             return {"intent": "ORDER_DETAIL", "entities": ent}
 
         if any(w in q for w in ['product', 'products', 'item', 'items', 'browse', 'catalog', 'categor']):
@@ -428,21 +464,30 @@ Respond with ONLY valid JSON:
     # ORDER ACTIONS
     # ════════════════════════════════════════════════════════════════════════
 
-    def _do_show_orders(self, entities):
+    def _do_show_orders(self, entities, session_id=None, role="user"):
         status = entities.get("status")
-        if status:
+        if role == "admin":
+            # Admin sees all orders
+            if status:
+                return self._db_fetch_all(
+                    "SELECT order_id, product_name, price, quantity, order_date, status FROM orders WHERE status = ? ORDER BY order_date DESC", (status,))
             return self._db_fetch_all(
-                "SELECT order_id, product_name, price, quantity, order_date, status FROM orders WHERE status = ? ORDER BY order_date DESC", (status,))
-        return self._db_fetch_all(
-            "SELECT order_id, product_name, price, quantity, order_date, status FROM orders ORDER BY order_date DESC")
+                "SELECT order_id, product_name, price, quantity, order_date, status FROM orders ORDER BY order_date DESC")
+        else:
+            # Regular users see only their own orders
+            if status:
+                return self._db_fetch_all(
+                    "SELECT order_id, product_name, price, quantity, order_date, status FROM orders WHERE session_id = ? AND status = ? ORDER BY order_date DESC", (session_id, status))
+            return self._db_fetch_all(
+                "SELECT order_id, product_name, price, quantity, order_date, status FROM orders WHERE session_id = ? ORDER BY order_date DESC", (session_id,))
 
-    def _do_order_detail(self, entities):
+    def _do_order_detail(self, entities, session_id=None, role="user"):
         oid = entities.get("order_id")
         pname = entities.get("product_name")
 
         # If no order_id but product_name given, look up by product name
         if not oid and pname:
-            matches = self._find_orders_by_product_name(pname)
+            matches = self._find_orders_by_product_name(pname, session_id=session_id, role=role)
             if not matches:
                 return None
             if len(matches) > 1:
@@ -452,9 +497,15 @@ Respond with ONLY valid JSON:
 
         if not oid:
             return None
-        return self._db_fetch_one(
-            "SELECT o.order_id, o.product_name, o.price, o.quantity, o.order_date, o.status, p.description, p.category "
-            "FROM orders o LEFT JOIN products p ON o.product_id = p.product_id WHERE o.order_id = ?", (oid,))
+
+        if role == "admin":
+            return self._db_fetch_one(
+                "SELECT o.order_id, o.product_name, o.price, o.quantity, o.order_date, o.status, p.description, p.category "
+                "FROM orders o LEFT JOIN products p ON o.product_id = p.product_id WHERE o.order_id = ?", (oid,))
+        else:
+            return self._db_fetch_one(
+                "SELECT o.order_id, o.product_name, o.price, o.quantity, o.order_date, o.status, p.description, p.category "
+                "FROM orders o LEFT JOIN products p ON o.product_id = p.product_id WHERE o.order_id = ? AND o.session_id = ?", (oid, session_id))
 
     def _do_buy(self, entities, session_id):
         """Find the product and show details for confirmation — does NOT create the order yet."""
@@ -486,14 +537,14 @@ Respond with ONLY valid JSON:
             "category": category
         }
 
-    def _do_update(self, entities):
+    def _do_update(self, entities, session_id=None, role="user"):
         oid = entities.get("order_id")
         pname = entities.get("product_name")
         new_status = entities.get("new_status") or entities.get("status")
 
         # If no order_id but product_name given, look up by product name
         if not oid and pname:
-            matches = self._find_orders_by_product_name(pname)
+            matches = self._find_orders_by_product_name(pname, session_id=session_id, role=role)
             if not matches:
                 return f"No orders found for '{pname}'."
             if len(matches) > 1:
@@ -511,7 +562,7 @@ Respond with ONLY valid JSON:
         self._db_run("UPDATE orders SET status = ? WHERE order_id = ?", (new_status, oid))
         return {"type": "success", "order_id": oid, "product_name": existing[1], "old_status": existing[2], "new_status": new_status}
 
-    def _do_delete(self, entities, session_id):
+    def _do_delete(self, entities, session_id, role="admin"):
         oid = entities.get("order_id")
         pname = entities.get("product_name")
         status = entities.get("status")
@@ -520,7 +571,7 @@ Respond with ONLY valid JSON:
             rows = self._db_fetch_all("SELECT order_id, product_name, status FROM orders WHERE order_id = ?", (oid,))
         elif pname:
             # Look up order by product name
-            matches = self._find_orders_by_product_name(pname)
+            matches = self._find_orders_by_product_name(pname, session_id=session_id, role=role)
             if not matches:
                 return f"No orders found for '{pname}'."
             if len(matches) > 1:
@@ -826,13 +877,13 @@ Be concise (2-3 sentences). Never mention databases or technical details."""
                 return resp
 
             elif intent == "SHOW_ORDERS":
-                data = self._do_show_orders(entities)
+                data = self._do_show_orders(entities, session_id=session_id, role=role)
                 resp = self._format_response(user_query, data, intent, rag_ctx, conv_ctx)
                 self._save(session_id, user_query, resp, op_type="READ")
                 return resp
 
             elif intent == "ORDER_DETAIL":
-                data = self._do_order_detail(entities)
+                data = self._do_order_detail(entities, session_id=session_id, role=role)
                 if not data:
                     resp = f"No order found with ID {entities.get('order_id', 'unknown')}."
                     self._save(session_id, user_query, resp, op_type="READ")
@@ -876,12 +927,25 @@ Do NOT say the order has been placed. Do NOT mention order IDs. This is just a p
                     return resp
 
             elif intent == "UPDATE_ORDER":
-                # Only admins can update order status
+                new_status = entities.get("new_status") or entities.get("status")
+                user_allowed_statuses = {"Cancelled", "Returned"}
+                admin_only_statuses = {"Pending", "Shipped", "Delivered"}
+
                 if role != "admin":
-                    resp = "🔒 Sorry, only administrators can update order statuses (e.g., Pending → Shipped). If you need a status change, please contact an admin.\n\nI can still help you with viewing, creating, or deleting orders!"
-                    self._save(session_id, user_query, resp, op_type="BLOCKED")
-                    return resp
-                data = self._do_update(entities)
+                    if new_status in admin_only_statuses:
+                        resp = f"🔒 Sorry, only administrators can set order status to **{new_status}**. You can cancel or return your own orders.\n\nTry saying: \"cancel order ORD123\" or \"return order ORD123\""
+                        self._save(session_id, user_query, resp, op_type="BLOCKED")
+                        return resp
+                    elif new_status not in user_allowed_statuses and new_status is not None:
+                        resp = f"🔒 Sorry, you can only **cancel** or **return** your orders. Setting status to '{new_status}' is not allowed.\n\nTry: \"cancel order ORD123\" or \"return order ORD123\""
+                        self._save(session_id, user_query, resp, op_type="BLOCKED")
+                        return resp
+                    elif new_status is None:
+                        resp = "What would you like to do with your order? You can **cancel** or **return** it.\n\nTry: \"cancel order ORD123\" or \"return order ORD123\""
+                        self._save(session_id, user_query, resp, op_type="PROMPT")
+                        return resp
+
+                data = self._do_update(entities, session_id=session_id, role=role)
                 if isinstance(data, str):
                     self._save(session_id, user_query, data)
                     return data
@@ -891,7 +955,12 @@ Do NOT say the order has been placed. Do NOT mention order IDs. This is just a p
                 return resp
 
             elif intent == "DELETE_ORDER":
-                result = self._do_delete(entities, session_id)
+                # Only admins can delete orders
+                if role != "admin":
+                    resp = "🔒 Sorry, only administrators can delete orders. If you need an order removed, please contact an admin.\n\nI can still help you with viewing orders, browsing products, or placing new orders!"
+                    self._save(session_id, user_query, resp, op_type="BLOCKED")
+                    return resp
+                result = self._do_delete(entities, session_id, role=role)
                 self._save(session_id, user_query, result, op_type="CONFIRM_REQUEST" if session_id in self._pending else None)
                 return result
 
