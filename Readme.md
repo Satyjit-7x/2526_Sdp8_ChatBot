@@ -1,116 +1,330 @@
-# 🚀 E-Commerce Chatbot with Gemini AI
+<p align="center">
+  <h1 align="center">🛒 ShopBot AI — E-Commerce Chatbot</h1>
+  <p align="center">
+    An intelligent, three-tier e-commerce chatbot powered by <strong>Google Gemini AI</strong> and <strong>Retrieval-Augmented Generation (RAG)</strong> for natural-language product browsing, order management, and customer support.
+  </p>
+</p>
 
-A smart, three-tier chatbot system for e-commerce customer support with product management, order tracking, and intelligent CRUD operations powered by Google Gemini AI.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/Flask-3.x-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask"/>
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"/>
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite"/>
+  <img src="https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express"/>
+  <img src="https://img.shields.io/badge/Gemini_AI-Powered-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini AI"/>
+  <img src="https://img.shields.io/badge/SQLite-3-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"/>
+  <img src="https://img.shields.io/badge/ChromaDB-RAG-FF6F00?style=for-the-badge" alt="ChromaDB"/>
+</p>
+
+---
+
+## 📖 Table of Contents
+
+- [About the Project](#-about-the-project)
+- [Key Features](#-key-features)
+- [System Architecture](#-system-architecture)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Running the Application](#-running-the-application)
+- [Usage Examples](#-usage-examples)
+- [API Reference](#-api-reference)
+- [Database Schema](#-database-schema)
+- [Environment Variables](#-environment-variables)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🧐 About the Project
+
+**ShopBot AI** is a full-stack, AI-powered e-commerce chatbot that enables users to browse products, place orders, and manage their shopping experience through natural language conversations. The system combines:
+
+- **RAG (Retrieval-Augmented Generation)** via ChromaDB for accurate FAQ and knowledge-base responses
+- **Google Gemini 2.0 Flash** for intent classification, natural language understanding, and response generation
+- **Full CRUD operations** on an SQLite database for orders and products
+- **Role-based access** with a dedicated admin panel for managing users, orders, and products
+
+This project was developed as part of the **SDP8 (Software Development Project 8)** coursework for the **2025–26** academic session.
+
+---
 
 ## ✨ Key Features
 
-✅ **Product Management**
+### 🤖 AI-Powered Chat
+- **Gemini 2.0 Flash LLM** for natural language understanding and response generation
+- **RAG pipeline** with SentenceTransformer embeddings + ChromaDB vector store
+- **Hybrid intent classification** — Gemini LLM with intelligent keyword fallback
+- **Context-aware conversations** — session history tracking for multi-turn dialogue
+
+### 🛍️ Product Management
 - Browse 69+ products across 10 categories
-- Search products by name/category
-- Beautiful formatted product displays with emojis
-- Product details (price, description, category)
+- Search products by name, description, or category
+- Product details with pricing, availability, and descriptions
+- Admin: create, update, and toggle product stock status
 
-✅ **Order Management (CRUD)**
-- **Create**: Place new orders from products
-- **Read**: View complete order history
-- **Update**: Change order status (Pending → Shipped → Delivered)
-- **Delete**: Cancel orders with confirmation
+### 📦 Order Management (CRUD)
+- **Create** — Place orders via natural language (e.g., *"Buy a gaming mouse"*)
+- **Read** — View order history with status tracking
+- **Update** — Change order status (Pending → Shipped → Delivered / Cancelled / Returned)
+- **Delete** — Remove orders with confirmation prompts
+- Contextual order referencing (e.g., *"Cancel that order"* uses conversation context)
 
-✅ **AI-Powered Responses**
-- Google Gemini AI for natural language processing
-- Context-aware conversation with session tracking
-- FAQ retrieval using ChromaDB vector database (RAG)
-- Beautiful, formatted responses with proper formatting
+### 🔐 Authentication & Authorization
+- Email/password registration and login
+- JWT-based session management (7-day expiry)
+- Role-based access control (**User** vs **Admin**)
+- Default admin account seeded on first startup
+- Persistent sessions via `localStorage`
 
-✅ **Session Management**
-- User session tracking
-- Conversation history per session
-- Order history tied to user sessions
-- Persistent data storage
+### 📊 Admin Dashboard
+- View all orders across all users
+- Manage order statuses (Pending, Shipped, Delivered, Cancelled, Returned)
+- User management with order counts
+- Product inventory management (add/edit/toggle stock)
+- Dashboard statistics (total orders, revenue, users, status breakdown)
 
----
-
-## 📋 System Architecture
-
-```
-Frontend (React + Vite)
-http://localhost:5173
-        │
-Node.js Backend (Express)
-http://localhost:3001
-        │
-Python Backend (Flask + AI)
-http://localhost:5001
-        │
-    SQLite3 + ChromaDB + Gemini API
-```
+### 💬 Smart Conversation
+- Greeting handling with time-of-day awareness
+- FAQ responses from trained knowledge base
+- Help and platform capability queries
+- Graceful fallbacks for unrecognized inputs
+- Support for casual conversation (thanks, goodbye, etc.)
 
 ---
 
-## 🛠️ Installation
+## 🏗️ System Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        CLIENT BROWSER                           │
+│                   React 19 + Vite (Port 5173)                   │
+│  ┌──────────┐   ┌──────────┐   ┌───────────┐   ┌──────────┐   │
+│  │LoginPage │   │ ChatPage │   │AdminPanel │   │AuthContext│   │
+│  └────┬─────┘   └────┬─────┘   └─────┬─────┘   └────┬─────┘   │
+└───────┼──────────────┼────────────────┼──────────────┼─────────┘
+        │              │                │              │
+        ▼              ▼                ▼              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                   NODE.JS MIDDLEWARE (Port 3001)                 │
+│                      Express 5 + JWT Auth                       │
+│  ┌──────────────┐  ┌──────────┐  ┌────────────────┐            │
+│  │ email-auth.js│  │ chat.js  │  │  products.js   │            │
+│  │  (Register/  │  │ (Proxy → │  │ (Product CRUD) │            │
+│  │  Login/JWT)  │  │  Flask)  │  │                │            │
+│  └──────────────┘  └────┬─────┘  └────────────────┘            │
+└──────────────────────────┼─────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                 PYTHON AI BACKEND (Port 5001)                   │
+│                    Flask + Gemini AI Engine                      │
+│                                                                  │
+│  ┌──────────┐    ┌───────────────────────────────┐              │
+│  │  app.py  │───▶│       bot_engine.py            │              │
+│  │ (Flask   │    │  ┌─────────┐ ┌──────────────┐ │              │
+│  │  Routes) │    │  │ChromaDB │ │ Gemini 2.0   │ │              │
+│  └──────────┘    │  │  (RAG)  │ │ Flash (LLM)  │ │              │
+│                  │  └─────────┘ └──────────────┘ │              │
+│                  │  ┌─────────┐ ┌──────────────┐ │              │
+│                  │  │ SQLite  │ │   Intent     │ │              │
+│                  │  │  (DB)   │ │ Classifier   │ │              │
+│                  │  └─────────┘ └──────────────┘ │              │
+│                  └───────────────────────────────┘              │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Request Pipeline
+
+1. **User types a message** → React frontend sends it to the Node.js middleware
+2. **Node.js middleware** proxies the request to the Flask AI backend
+3. **Bot Engine** retrieves relevant context from ChromaDB (RAG)
+4. **Gemini AI** classifies intent and extracts entities
+5. **Database operations** execute based on classified intent (CRUD on SQLite)
+6. **Gemini AI** formats a natural, polished response using RAG + DB results
+7. **Response flows back** through Node.js → React → displayed to the user
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Frontend** | React 19, Vite 7, Vanilla CSS | UI: Login, Chat, Admin Panel |
+| **Middleware** | Node.js, Express 5, JWT, better-sqlite3 | Auth, routing, chat proxy |
+| **AI Backend** | Python 3.10+, Flask, Google Gemini AI | Chat engine, intent classification |
+| **RAG** | ChromaDB, SentenceTransformers (`all-MiniLM-L6-v2`) | Knowledge base retrieval |
+| **Database** | SQLite3 | Orders, products, users, conversation history |
+| **Auth** | PBKDF2 (SHA-256), JSON Web Tokens | Secure password hashing, session tokens |
+
+---
+
+## 📁 Project Structure
+
+```
+2526_sdp8_chatbot/
+│
+├── app.py                        # Flask API server (REST endpoints)
+├── bot_engine.py                 # Core AI engine (RAG + Gemini + CRUD logic)
+├── email_auth_utils.py           # Python auth helpers (hash, verify, register)
+├── setup_email_auth.py           # Database schema initialization script
+├── start.sh                      # Quick start script (Linux/macOS)
+├── orders.db                     # SQLite database (auto-generated)
+├── .env                          # Environment variables (API keys)
+├── .gitignore                    # Git ignore rules
+│
+├── backend/                      # Node.js Express middleware
+│   ├── server.js                 #   Express app entry point
+│   ├── routes/
+│   │   ├── chat.js               #   Chat proxy → Flask backend
+│   │   ├── email-auth.js         #   Auth routes (register/login/verify)
+│   │   └── products.js           #   Product CRUD routes
+│   └── package.json              #   Node.js dependencies
+│
+├── frontend/                     # React + Vite frontend
+│   ├── index.html                #   HTML entry point
+│   ├── vite.config.js            #   Vite configuration
+│   ├── src/
+│   │   ├── main.jsx              #   React entry point
+│   │   ├── App.jsx               #   Root component (routing logic)
+│   │   ├── App.css               #   Global styles
+│   │   ├── index.css             #   Base CSS
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx   #   Authentication state management
+│   │   └── components/
+│   │       ├── LoginPage.jsx     #   Login/Register UI
+│   │       ├── LoginPage.css     #   Login page styles
+│   │       ├── ChatPage.jsx      #   Chat interface
+│   │       ├── AdminPanel.jsx    #   Admin dashboard
+│   │       ├── AdminPanel.css    #   Admin panel styles
+│   │       ├── ProductList.jsx   #   Product browsing component
+│   │       └── ProductList.css   #   Product list styles
+│   └── package.json              #   Frontend dependencies
+│
+├── data/
+│   ├── chroma_db/                # ChromaDB vector database (RAG knowledge base)
+│   ├── english_support_dataset.csv   # English FAQ training data
+│   └── hindi_support_dataset.csv     # Hindi FAQ training data
+│
+├── Learnings/                    # Additional learning resources
+└── Others/                       # Miscellaneous files
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.10+
-- Node.js 16+
-- SQLite3
-- Gemini API Key
 
-### Step 1: Setup Python
+| Requirement | Version |
+|---|---|
+| **Python** | 3.10 or higher |
+| **Node.js** | 16 or higher |
+| **npm** | 8 or higher |
+| **Google Gemini API Key** | [Get one here](https://aistudio.google.com/apikey) |
+
+### Step 1: Clone the Repository
+
 ```bash
+git clone https://github.com/Hepin007/2526_sdp8_chatbot.git
 cd 2526_sdp8_chatbot
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
 ```
 
-### Step 2: Setup Gemini API
+### Step 2: Setup Python Environment
+
 ```bash
-# Create .env file
-echo "GEMINI_API_KEY=your_api_key_here" > .env
+# Create and activate virtual environment
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# macOS / Linux
+source venv/bin/activate
+
+# Install Python dependencies
+pip install flask flask-cors google-generativeai chromadb sentence-transformers python-dotenv
 ```
 
-### Step 3: Initialize Database
+### Step 3: Configure Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+> 💡 Get your free API key from [Google AI Studio](https://aistudio.google.com/apikey).
+
+### Step 4: Initialize the Database
+
 ```bash
-python setup_database.py
+python setup_email_auth.py
 ```
 
-### Step 4: Setup Node.js Backend
+This creates the `orders.db` SQLite database with tables for users, products, orders, and conversation history.
+
+### Step 5: Setup Node.js Backend
+
 ```bash
 cd backend
 npm install
+cd ..
 ```
 
-### Step 5: Setup React Frontend
+### Step 6: Setup React Frontend
+
 ```bash
 cd frontend
 npm install
+cd ..
 ```
 
 ---
 
-## 🚀 Running the Application
+## ▶️ Running the Application
 
-Open 3 different terminals:
+You need **3 terminals** running simultaneously:
 
-**Terminal 1: Flask Backend**
+### Terminal 1 — Python AI Backend
+
 ```bash
 python app.py
-# Runs on http://localhost:5001
 ```
 
-**Terminal 2: Node.js Backend**
+> ✅ Runs on `http://localhost:5001`
+
+### Terminal 2 — Node.js Middleware
+
 ```bash
-cd backend && npm start
-# Runs on http://localhost:3001
+cd backend
+npm start
 ```
 
-**Terminal 3: React Frontend**
+> ✅ Runs on `http://localhost:3001`
+
+### Terminal 3 — React Frontend
+
 ```bash
-cd frontend && npm run dev
-# Runs on http://localhost:5173
+cd frontend
+npm run dev
 ```
 
-Visit: **http://localhost:5173**
+> ✅ Runs on `http://localhost:5173`
+
+### 🌐 Open in Browser
+
+Navigate to **http://localhost:5173** to start using the chatbot.
+
+### Default Admin Credentials
+
+| Field | Value |
+|---|---|
+| Email | `admin@admin.com` |
+| Password | `admin123` |
+
+> ⚠️ **Change the default admin password in production!**
 
 ---
 
@@ -119,107 +333,162 @@ Visit: **http://localhost:5173**
 ### Browse Products
 ```
 User: "Show me gaming products"
-Bot: "📦 Available Products in Gaming:
-     1. **Gaming Mouse** - ₹1999"
+Bot:  "🛍️ Here are the Gaming products:
+       1. Gaming Mouse — ₹1999
+       2. Gaming Keyboard — ₹2499
+       ..."
 ```
 
-### Create Order
+### Buy a Product
 ```
-User: "place order for Gaming Mouse"
-Bot: "✅ Order ORD456 created!"
+User: "I want to buy a Gaming Mouse"
+Bot:  "Here are the details for Gaming Mouse (₹1999).
+       Would you like to confirm the purchase?"
+User: "Yes"
+Bot:  "🎉 Order placed! Your order ORD456 for Gaming Mouse (₹1999) is now Pending."
 ```
 
 ### View Orders
 ```
-User: "show my orders"
-Bot: "Your Orders:
-     1. ORD456 - Gaming Mouse [Pending]"
+User: "Show my orders"
+Bot:  "📦 Your Orders:
+       1. ORD456 — Gaming Mouse | ₹1999 | Pending"
 ```
 
-### Update Order
+### Update Order Status
 ```
-User: "mark order as delivered"
-Bot: "✅ Order updated to Delivered"
-```
-
-### Cancel Order
-```
-User: "cancel my order"
-Bot: "✅ Order cancelled"
+User: "Mark ORD456 as delivered"
+Bot:  "✅ Order ORD456 (Gaming Mouse) updated: Pending → Delivered"
 ```
 
----
-
-## 📊 Database Schema
-
-**Products** (69 items across 10 categories)
-- Accessories, Audio, Books, Cameras, Clothing, Computing, Gaming, Health, Home, Mobile
-
-**Orders**
-- order_id, session_id, product_id, product_name, price, quantity, status
-
-**Conversation History**
-- id, session_id, timestamp, user_message, bot_response
-
----
-
-## 📁 Project Structure
-
+### Cancel an Order
 ```
-2526_sdp8_chatbot/
-├── app.py                    # Flask API Server
-├── bot_engine.py             # AI Engine & Logic
-├── setup_database.py         # Database Initialization
-├── orders.db                 # SQLite Database
-├── ARCHITECTURE.md           # Detailed Design
-├── backend/                  # Node.js Express
-├── frontend/                 # React + Vite
-└── data/chroma_db/          # Vector Database
+User: "Cancel my order"
+Bot:  "✅ Order ORD456 status updated to Cancelled."
+```
+
+### Ask Questions
+```
+User: "What is your return policy?"
+Bot:  "Our return policy allows returns within 30 days of delivery..."
 ```
 
 ---
 
-## 🔌 API Endpoints
+## 📡 API Reference
 
-```
-POST /api/chat                              # Send message
-GET /api/products                           # All products
-GET /api/products?category=Gaming           # Filter by category
-GET /api/orders                             # User orders
-POST /api/orders                            # Create order
-PUT /api/orders/<id>                        # Update order
-DELETE /api/orders/<id>                     # Delete order
-```
+### Authentication (Node.js — Port 3001)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/auth/register` | Register a new user |
+| `POST` | `/api/auth/login` | Login and receive JWT token |
+| `POST` | `/api/auth/verify` | Verify JWT token validity |
+
+### Chat (Flask — Port 5001)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/chat` | Send a chat message and receive AI response |
+| `POST` | `/api/reset` | Reset the current chat session |
+
+### Products (Flask — Port 5001)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/products` | Get all products (optionally filter by `?category=`) |
+| `GET` | `/api/products/categories` | Get all product categories |
+| `GET` | `/api/products/<id>` | Get a specific product by ID |
+| `GET` | `/api/products/search?q=` | Search products by name/description |
+| `POST` | `/api/products` | Create a new product *(admin)* |
+| `PUT` | `/api/products/<id>` | Update a product *(admin)* |
+
+### Orders (Flask — Port 5001)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/orders` | Get orders (`?user_id=` for user-specific) |
+| `PUT` | `/api/orders/<id>` | Update order status *(admin)* |
+| `DELETE` | `/api/orders/<id>` | Delete an order *(admin)* |
+
+### Admin (Flask — Port 5001)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/admin/stats` | Dashboard statistics |
+| `GET` | `/api/admin/users` | List all registered users |
 
 ---
 
-## ✅ Testing
+## 🗄️ Database Schema
 
-```bash
-# Test syntax
-python -m py_compile app.py bot_engine.py setup_database.py
+### `users`
+| Column | Type | Description |
+|---|---|---|
+| `user_id` | INTEGER (PK) | Auto-increment user ID |
+| `email` | TEXT (UNIQUE) | User email address |
+| `password_hash` | TEXT | PBKDF2 hashed password |
+| `name` | TEXT | Display name |
+| `role` | TEXT | `user` or `admin` |
+| `created_at` | TIMESTAMP | Account creation date |
 
-# Test database
-sqlite3 orders.db "SELECT COUNT(*) FROM products"
+### `products`
+| Column | Type | Description |
+|---|---|---|
+| `product_id` | INTEGER (PK) | Auto-increment product ID |
+| `name` | TEXT | Product name |
+| `description` | TEXT | Product description |
+| `price` | REAL | Price in ₹ (INR) |
+| `category` | TEXT | Product category |
+| `in_stock` | BOOLEAN | Availability status |
 
-# Test API
-curl http://localhost:5001/api/products/categories
-```
+### `orders`
+| Column | Type | Description |
+|---|---|---|
+| `order_id` | TEXT (PK) | Order identifier (e.g., `ORD456`) |
+| `session_id` | TEXT | User session / user ID |
+| `product_id` | INTEGER (FK) | Reference to product |
+| `product_name` | TEXT | Product name (denormalized) |
+| `price` | REAL | Order price |
+| `quantity` | INTEGER | Quantity ordered |
+| `order_date` | TEXT | Order placement date |
+| `status` | TEXT | `Pending` / `Shipped` / `Delivered` / `Cancelled` / `Returned` |
+
+### `conversation_history`
+| Column | Type | Description |
+|---|---|---|
+| `id` | INTEGER (PK) | Auto-increment ID |
+| `session_id` | TEXT | User session identifier |
+| `timestamp` | DATETIME | Message timestamp |
+| `user_message` | TEXT | User's input message |
+| `bot_response` | TEXT | Bot's generated response |
+| `operation_type` | TEXT | Type of action performed |
+| `affected_items` | TEXT | Items affected by the action |
 
 ---
 
-## 🧠 Bot Intelligence
+## 🔐 Environment Variables
 
-- Product queries: "Show me gaming products", "Find laptops"
-- Order operations: "Create order", "Mark as delivered", "Cancel order"
-- Session tracking: Per-user orders and history
-- Natural language understanding via Gemini AI
+| Variable | Required | Description |
+|---|---|---|
+| `GEMINI_API_KEY` | ✅ Yes | Google Gemini API key for AI features |
+| `JWT_SECRET` | ❌ Optional | Secret key for JWT token signing (defaults to a placeholder — **change in production**) |
+| `PORT` | ❌ Optional | Flask server port (default: `5001`) |
 
 ---
 
 ## 🐛 Troubleshooting
 
 ### Port Already in Use
+
+**Windows (PowerShell):**
+```powershell
+# Find and kill process on a specific port
+netstat -ano | findstr :5001
+taskkill /PID <PID> /F
+```
+
+**macOS / Linux:**
 ```bash
 lsof -i :5001 | awk 'NR==2 {print $2}' | xargs kill -9
 lsof -i :3001 | awk 'NR==2 {print $2}' | xargs kill -9
@@ -227,55 +496,71 @@ lsof -i :5173 | awk 'NR==2 {print $2}' | xargs kill -9
 ```
 
 ### Reset Database
+
 ```bash
-rm orders.db
-python setup_database.py
+# Delete existing database and reinitialize
+rm orders.db          # or `del orders.db` on Windows
+python setup_email_auth.py
 ```
 
 ### Reinstall Dependencies
+
 ```bash
-pip install -r requirements.txt
+# Python
+pip install flask flask-cors google-generativeai chromadb sentence-transformers python-dotenv
+
+# Node.js backend
 cd backend && npm install
+
+# React frontend
 cd frontend && npm install
 ```
 
-### Gemini API Issues
-- Verify GEMINI_API_KEY in .env
-- Check API key validity at [Google AI Studio](https://aistudio.google.com)
-- Ensure quota remaining
+### Common Issues
+
+| Issue | Solution |
+|---|---|
+| `GEMINI_API_KEY` not working | Verify your key at [Google AI Studio](https://aistudio.google.com). Ensure `.env` file is in the project root. |
+| ChromaDB collection not found | Ensure the `data/chroma_db/` directory exists and has been populated with training data. |
+| `ModuleNotFoundError` | Activate your virtual environment and reinstall Python dependencies. |
+| Frontend not connecting | Ensure all 3 services are running on ports 5001, 3001, and 5173. |
+| Login not working | Run `python setup_email_auth.py` to initialize the users table. |
+| Admin panel not showing | Login with `admin@admin.com` / `admin123`. |
 
 ---
 
-## 🚀 Production Deployment
+## 🤝 Contributing
 
-1. Use environment variables for secrets
-2. Setup SSL/TLS certificates
-3. Use PostgreSQL instead of SQLite
-4. Add load balancer
-5. Implement rate limiting
-6. Add authentication
-7. Setup monitoring
+Contributions are welcome! Here's how to get started:
 
----
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
 
-## 📚 Documentation
+### Development Guidelines
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design.
-
----
-
-## 📞 Support
-
-Issues? Check:
-1. .env has GEMINI_API_KEY
-2. All 3 services running
-3. Check terminal logs
-4. Verify ports free (5001, 3001, 5173)
-5. Reset database if needed
+- Follow existing code style and conventions
+- Test your changes with all 3 services running
+- Update this README if adding new features or endpoints
+- Keep commit messages clear and descriptive
 
 ---
 
-**Status**: ✅ Production Ready  
-**Python**: 3.10+  
-**Node.js**: 16+  
-**Updated**: February 16, 2026
+## 📄 License
+
+This project is developed for academic purposes as part of the **SDP8** coursework. Please refer to your institution's academic integrity policies before reusing.
+
+---
+
+## 👥 Team
+
+**Project:** SDP8 — E-Commerce AI Chatbot  
+**Session:** 2025–26
+
+---
+
+<p align="center">
+  Made with ❤️ using React, Flask, and Gemini AI
+</p>
