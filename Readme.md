@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">🛒 ShopBot AI — E-Commerce Chatbot</h1>
+  <h1 align="center">🛒 AI Chatbot -Smart e-commerce companion</h1>
   <p align="center">
     An intelligent, three-tier e-commerce chatbot powered by <strong>Google Gemini AI</strong> and <strong>Retrieval-Augmented Generation (RAG)</strong> for natural-language product browsing, order management, and customer support.
   </p>
@@ -59,7 +59,7 @@ This project was developed as part of the **SDP8 (Software Development Project 8
 - **Context-aware conversations** — session history tracking for multi-turn dialogue
 
 ### 🛍️ Product Management
-- Browse 69+ products across 10 categories
+- Browse products across categories 
 - Search products by name, description, or category
 - Product details with pricing, availability, and descriptions
 - Admin: create, update, and toggle product stock status
@@ -529,38 +529,12 @@ cd frontend && npm install
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Here's how to get started:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Development Guidelines
-
-- Follow existing code style and conventions
-- Test your changes with all 3 services running
-- Update this README if adding new features or endpoints
-- Keep commit messages clear and descriptive
-
----
-
-## 📄 License
-
-This project is developed for academic purposes as part of the **SDP8** coursework. Please refer to your institution's academic integrity policies before reusing.
-
----
-
 ## 👥 Team
 
 **Project:** SDP8 — E-Commerce AI Chatbot  
 **Session:** 2025–26
+**Member-1** CE015 - Chudhari Prince 
+**Member-2** CE020 - Chauhan Satyjit 
+**Member-3** CE021 - Chovatiya Hepin 
 
 ---
-
-<p align="center">
-  Made with ❤️ using React, Flask, and Gemini AI
-</p>
