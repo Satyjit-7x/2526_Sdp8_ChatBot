@@ -227,8 +227,8 @@ This project was developed as part of the **SDP8 (Software Development Project 8
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/Hepin007/2526_sdp8_chatbot.git
-cd 2526_sdp8_chatbot
+git clone https://github.com/Satyjit-7x/2526_Sdp8_ChatBot.git
+cd 2526_Sdp8_ChatBot
 ```
 
 ### Step 2: Setup Python Environment
