@@ -55,7 +55,7 @@ data/orders.db
 # =============================
 # Data / ML Artifacts
 # =============================
-data/chroma_db/
+# NOTE: data/chroma_db/ is NOT ignored — it contains the pre-trained RAG knowledge base
 data/vector_store.pkl
 data/*.pkl
 data/english_support_dataset.csv

@@ -6,7 +6,8 @@ echo "🚀 CHATBOT QUICK START"
 echo "================================"
 echo ""
 
-PROJECT_ROOT="/Users/ravirajsinhpadhiyar/Documents/GitHub/2526_sdp8_chatbot/2526_sdp8_chatbot"
+# Use the directory where the script is located
+PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 # Step 1: Setup Database
 echo "Step 1️⃣ : Setting up database with products..."

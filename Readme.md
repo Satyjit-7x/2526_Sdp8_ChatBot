@@ -169,9 +169,11 @@ This project was developed as part of the **SDP8 (Software Development Project 8
 ├── bot_engine.py                 # Core AI engine (RAG + Gemini + CRUD logic)
 ├── email_auth_utils.py           # Python auth helpers (hash, verify, register)
 ├── setup_email_auth.py           # Database schema initialization script
+├── requirements.txt              # Python dependencies (pip install -r)
 ├── start.sh                      # Quick start script (Linux/macOS)
 ├── orders.db                     # SQLite database (auto-generated)
-├── .env                          # Environment variables (API keys)
+├── .env.example                  # Environment variables template
+├── .env                          # Environment variables (create from .env.example)
 ├── .gitignore                    # Git ignore rules
 │
 ├── backend/                      # Node.js Express middleware
@@ -244,12 +246,18 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # Install Python dependencies
-pip install flask flask-cors google-generativeai chromadb sentence-transformers python-dotenv
+pip install -r requirements.txt
 ```
 
 ### Step 3: Configure Environment Variables
 
-Create a `.env` file in the project root:
+Copy the example environment file and add your API key:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and set your Gemini API key:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
@@ -507,7 +515,7 @@ python setup_email_auth.py
 
 ```bash
 # Python
-pip install flask flask-cors google-generativeai chromadb sentence-transformers python-dotenv
+pip install -r requirements.txt
 
 # Node.js backend
 cd backend && npm install
